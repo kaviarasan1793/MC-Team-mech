@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MC Dashboard</title>
+  <link rel="icon" type="image/png" href="MC.PNG">
+  
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f7fa; overflow: hidden; }
+    
+    :root {
+      --primary-color: #0f5c9c;
+      --sidebar-width: 260px;
+    }
+
+    .float-menu-btn {
+        position: fixed; top: 2px; left: 15px; z-index: 2000;
+        background: var(--primary-color); color: white;
+        width: 40px; height: 40px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 20px; cursor: pointer;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .float-menu-btn:hover { transform: scale(1.15) rotate(10deg); }
+
+    .sidebar { 
+        position: fixed; top: 0; left: 0; width: var(--sidebar-width); 
+        height: 100vh; background: var(--primary-color);
+        transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); z-index: 1000;
+        display: flex; flex-direction: column; box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+    }
+    .sidebar.closed { transform: translateX(-100%); }
+
+    .sidebar-header { padding: 8px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .sidebar-header h2 { color: white; font-size: 1.1rem; margin: 0; }
+    
+    .sidebar-menu { flex: 1; overflow-y: auto; padding-top: 10px; }
+    
+    .sidebar button { 
+        width: 100%; padding: 10px 15px; background: transparent; border: none; 
+        color: rgba(255,255,255,0.9); text-align: left; font-size: 0.95rem; cursor: pointer; 
+        border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 10px;
+        transition: all 0.3s ease;
+    }
+    .sidebar button:hover { background: rgba(255,255,255,0.1); padding-left: 25px; }
+    .sidebar button.active { background: rgba(255,255,255,0.2); border-left: 5px solid white; color: white; font-weight: bold; }
+
+    .sidebar-footer { padding: 10px; background: rgba(0,0,0,0.1); border-top: 1px solid rgba(255,255,255,0.1); }
+    .user-info { color: white; margin-bottom: 8px; font-size: 0.8rem; }
+    
+    .footer-btns { display: flex; gap: 4px; } 
+    .btn-footer { 
+        flex: 1; padding: 2px 4px; border: none; border-radius: 3px; 
+        cursor: pointer; font-size: 0.65rem; font-weight: bold; color: white; 
+        display: flex; align-items: center; justify-content: center; gap: 3px;
+        transition: transform 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.2); height: 24px; 
+    }
+    .btn-expand { background-color: #28a745 !important; }
+    .btn-logout { background-color: #dc3545 !important; }
+
+    .content { 
+        margin-left: var(--sidebar-width); height: 100vh; padding: 0; 
+        transition: margin-left 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); background: white; position: relative; 
+    }
+    .content.expanded { margin-left: 0; }
+
+    .content-frame { width: 100%; height: 100%; border: none; display: none; }
+    .admin-panel { display: none; padding: 30px; background: #f4f7fa; min-height: 100%; overflow-y: auto; }
+    
+    .welcome-screen { 
+        height: 100%; display: flex; flex-direction: column; 
+        justify-content: flex-start; align-items: center; 
+        background: radial-gradient(circle at top center, #ffffff 0%, #f4f7fa 100%);
+        overflow-y: auto; padding: 35px 25px; position: relative;
+    }
+
+    .live-clock-container {
+        position: absolute; top: 15px; right: 20px; color: #666;
+        background: white; padding: 5px 12px; border-radius: 6px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.04); border: 1px solid #eee;
+        display: flex; align-items: center; gap: 8px;
+    }
+    .live-indicator { width: 6px; height: 6px; background-color: #dc3545; border-radius: 50%; box-shadow: 0 0 5px rgba(220, 53, 69, 0.8); animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0% { transform: scale(0.95); opacity: 0.5; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(0.95); opacity: 0.5; } }
+    .live-time { font-size: 1rem; font-weight: 800; color: #0f5c9c; line-height: 1;}
+    .live-date { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;}
+
+    .welcome-badge {
+        display: inline-flex; align-items: center; gap: 8px;
+        background: linear-gradient(135deg, var(--primary-color), #2a8ae2);
+        color: white; padding: 5px 14px; border-radius: 30px;
+        font-size: 0.8rem; font-weight: bold; margin-bottom: 15px;
+        box-shadow: 0 3px 8px rgba(15, 92, 156, 0.25); letter-spacing: 0.5px;
+        animation: dropIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .admin-dashboard { text-align: left; width: 100%; max-width: 1350px; margin-top: 5px; display: none; }
+    
+    .admin-icon { font-size: 1.8rem; margin-bottom: 0; display: inline-block; vertical-align: middle; margin-right: 10px; animation: floatIcon 3s ease-in-out infinite;}
+    .admin-title { color: #0f5c9c; font-size: 1.6rem; margin-bottom: 4px; font-weight: 800; display: inline-block; vertical-align: middle;}
+    .admin-subtitle { color: #666; font-size: 0.9rem; margin-bottom: 20px; padding-left: 5px;}
+
+    .quick-stats { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 25px; }
+    
+    .stat-card {
+        background: white; border-radius: 8px; padding: 15px; flex: 1; min-width: 180px; 
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid #eaeaea; position: relative; 
+        display: flex; justify-content: space-between; align-items: center; 
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+        opacity: 0; transform: translateY(30px);
+    }
+    .stat-card:hover { transform: translateY(-8px) scale(1.02); border-color: var(--primary-color); box-shadow: 0 10px 20px rgba(15, 92, 156, 0.15); z-index: 10;}
+    .stat-card:hover .stat-icon { transform: scale(1.2) rotate(5deg); opacity: 0.8; color: var(--primary-color); }
+    
+    .stat-left { display: flex; flex-direction: column; }
+    .stat-label { font-size: 0.8rem; color: #777; font-weight: 600; text-transform: uppercase; margin-bottom: 4px; }
+    .stat-value { font-size: 1.4rem; font-weight: 900; color: var(--primary-color); line-height: 1; transition: color 0.3s ease; }
+    .stat-trend { font-size: 0.7rem; font-weight: bold; margin-top: 4px; color: #28a745; transition: opacity 0.3s; }
+    .stat-icon { font-size: 1.8rem; opacity: 0.2; transition: all 0.3s ease; }
+
+    .syncing-text { animation: pulse-opacity 1s infinite alternate; }
+    @keyframes pulse-opacity { 0% { opacity: 0.4; } 100% { opacity: 1; } }
+
+    .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 15px; width: 100%; }
+
+    .dashboard-card { 
+        background: white; border-radius: 8px; padding: 20px; 
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid #eaeaea; 
+        display: flex; flex-direction: column;
+        transition: all 0.3s ease;
+        opacity: 0; transform: translateY(30px);
+        overflow: hidden;
+    }
+    .dashboard-card h3 { color: #333; margin-bottom: 15px; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #eee; padding-bottom: 8px;}
+
+    .kpi-ring-wrapper { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; cursor: default; transition: 0.3s; padding: 6px; border-radius: 6px; }
+    .kpi-ring-wrapper:hover { background: #f8f9fa; transform: translateX(8px); }
+    .kpi-ring { position: relative; width: 55px; height: 55px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 8px rgba(0,0,0,0.05); }
+    .kpi-ring::before { content: ""; position: absolute; inset: 6px; background: white; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: 0.3s;}
+    .kpi-ring-wrapper:hover .kpi-ring::before { transform: scale(0.9); }
+    .kpi-ring-val { position: relative; z-index: 1; font-weight: 900; font-size: 0.9rem; color: #333; }
+    
+    .ring-blue { background: conic-gradient(var(--primary-color) 100%, #e9ecef 0); }
+    .ring-green { background: conic-gradient(#28a745 100%, #e9ecef 0); }
+    .ring-orange { background: conic-gradient(#fd7e14 100%, #e9ecef 0); }
+
+    .kpi-text { display: flex; flex-direction: column; }
+    .kpi-title { font-weight: 800; font-size: 0.9rem; color: #444; margin-bottom: 2px;}
+    .kpi-sub { font-size: 0.8rem; color: #777; }
+
+    .logistics-timeline { position: relative; padding-left: 18px; border-left: 2px solid #eee; margin-top: 5px; margin-left: 8px;}
+    .timeline-item { position: relative; margin-bottom: 20px; cursor: default; transition: 0.3s; padding: 4px; border-radius: 6px; opacity: 0; transform: translateX(-20px);}
+    .timeline-item:hover { background: #f8f9fa; transform: translateX(5px) scale(1.02); }
+    .timeline-dot { position: absolute; left: -24px; top: 5px; width: 10px; height: 10px; border-radius: 50%; background: var(--primary-color); border: 2px solid white; box-shadow: 0 0 0 2px #eef2f5; transition: 0.3s;}
+    .timeline-item:hover .timeline-dot { transform: scale(1.5); }
+    .dot-green { background: #28a745; box-shadow: 0 0 0 2px #e8f5e9; }
+    .dot-orange { background: #fd7e14; box-shadow: 0 0 0 2px #fff3cd; }
+    .dot-blue { background: var(--primary-color); box-shadow: 0 0 0 2px #e8f4fd; }
+    
+    .timeline-time { font-size: 0.75rem; color: #888; font-weight: bold; margin-bottom: 3px; display: block;}
+    .timeline-desc { font-size: 0.9rem; color: #333; font-weight: 700; line-height: 1.3;}
+    .timeline-status { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: bold; margin-top: 5px; }
+    .status-transit { background: #e8f4fd; color: #0f5c9c; }
+    .status-arrived { background: #d4edda; color: #155724; }
+    .status-prep { background: #fff3cd; color: #856404; }
+
+    .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .btn-tiny {
+        background: white; border: 1px solid #ddd; padding: 10px; font-size: 0.85rem;
+        border-radius: 6px; color: #444; font-weight: bold; cursor: pointer;
+        display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .btn-tiny:hover { background: #f4f7fa; border-color: var(--primary-color); color: var(--primary-color); transform: scale(1.05); }
+
+    .btn-tiny.primary { background: var(--primary-color); color: white; border: none; box-shadow: 0 2px 5px rgba(15, 92, 156, 0.3); }
+    .btn-tiny.primary:hover { background: #0b4578; color: white; transform: scale(1.05); border-color: transparent; }
+
+    @keyframes dropIn { from { opacity: 0; transform: translateY(-20px) scale(0.9); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    @keyframes floatIcon { 0% { transform: translateY(0px); } 50% { transform: translateY(-5px); } 100% { transform: translateY(0px); } }
+    @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
+    @keyframes slideInRight { to { opacity: 1; transform: translateX(0); } }
+
+    .welcome-screen.animate-in .stat-card:nth-child(1) { animation: fadeInUp 0.5s forwards 0.1s; }
+    .welcome-screen.animate-in .stat-card:nth-child(2) { animation: fadeInUp 0.5s forwards 0.2s; }
+    .welcome-screen.animate-in .stat-card:nth-child(3) { animation: fadeInUp 0.5s forwards 0.3s; }
+    .welcome-screen.animate-in .stat-card:nth-child(4) { animation: fadeInUp 0.5s forwards 0.4s; }
+    .welcome-screen.animate-in .dashboard-card:nth-child(1) { animation: fadeInUp 0.6s forwards 0.3s; }
+    .welcome-screen.animate-in .dashboard-card:nth-child(2) { animation: fadeInUp 0.6s forwards 0.4s; }
+    .welcome-screen.animate-in .dashboard-card:nth-child(3) { animation: fadeInUp 0.6s forwards 0.5s; }
+
+    .user-dashboard { text-align: center; width: 100%; max-width: 600px; margin-top: 10vh; display: none; opacity: 0; transform: translateY(20px);}
+    .user-dashboard h1 { color: #0f5c9c; font-size: 2.2rem; margin-bottom: 10px; font-weight: 800; }
+    .user-message-box { background: white; border-radius: 12px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #eaeaea; margin-top: 20px; }
+    .welcome-screen.animate-in .user-dashboard { animation: fadeInUp 0.6s forwards 0.2s; }
+
+    .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; z-index: 998; }
+    .overlay.show { display: block; }
+    #clickCatcher { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: transparent; z-index: 999; display: none; }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+    .modal-content { background: white; padding: 20px; width: 380px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: bold; }
+    .form-group input, .form-group select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem;}
+    .btn-submit { width: 100%; padding: 8px; background: var(--primary-color); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; font-weight: bold; margin-top: 5px; }
+    table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); font-size: 0.9rem;}
+    th { background: var(--primary-color); color: white; padding: 10px; text-align: left; }
+    td { padding: 10px; border-bottom: 1px solid #eee; }
+    .btn-action { padding: 5px 10px; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer; font-size: 0.8rem; margin-right: 4px; }
+  </style>
+</head>
+<body>
+
+  <div class="float-menu-btn" onclick="window.toggleSidebar()">☰</div>
+
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h2>MC Dashboard</h2>
+    </div>
+
+    <div class="sidebar-menu">
+      <button id="homeBtn" onclick="window.showWelcome()">🏠 Home</button>
+      <button id="awardBtn" onclick="window.loadPage('Award.html')">🎖️ Award Data</button>
+      <button id="batteryBtn" onclick="window.loadPage('Battery.html')">⚡️ Battery Tracking</button>
+      <button id="gasketBtn" onclick="window.loadPage('pacover.html')">📦 PA Cover Gasket</button>
+      <button id="trolleyBtn" onclick="window.loadPage('TrolleyMaint.html')">🛒 Trolley Maintenance</button>
+      <button id="mechBufferBtn" onclick="window.loadPage('Buffer location.html')">🏭 Mech Buffer Rack</button>
+      <button id="invTagBtn" onclick="window.loadPage('Inventory Tag.html')">🏷️ Inventory Tag</button>
+      <button id="moveReportBtn" onclick="window.loadPage('Material Movement Report.html')">📝 Movement Report</button>
+      <button id="workTimeReportBtn" onclick="window.loadPage('Work Time Monitoring Report.html')">⏰ Work Time Report</button>
+      <button id="profileBtn" onclick="window.showProfile()">👨🏻‍💼 Profile</button>
+      <div id="customSidebarArea"></div>
+      <div id="adminArea" style="display:none; border-top:1px solid rgba(255,255,255,0.2); margin-top:10px; padding-top:10px;">
+          <button onclick="window.showSidebarControl()">🎛️ Sidebar Control</button>
+          <button onclick="window.showUserMgmt()">👨‍💼 User Management</button>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+        <div class="user-info">
+            <div style="font-weight:bold; font-size:1rem;">👨‍💼 <span id="currentUserName">User</span></div>
+            <div style="font-size:0.8rem; opacity:0.8;" id="currentUserEmail">email@nokia.com</div>
+        </div>
+        <div class="footer-btns">
+            <button class="btn-footer btn-expand" onclick="window.toggleFullScreen()">⛶ Full</button>
+            <button class="btn-footer btn-logout" onclick="window.handleLogout()">⏻ Logout</button>
+        </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay" onclick="window.toggleSidebar()"></div>
+
+  <div class="content" id="content">
+    <div id="clickCatcher" onclick="window.toggleSidebar()"></div>
+
+    <div class="welcome-screen" id="welcomeScreen">
+      
+      <div class="live-clock-container">
+          <div class="live-indicator"></div>
+          <div>
+              <div class="live-time" id="liveTime">00:00</div>
+              <div class="live-date" id="liveDate">Loading...</div>
+          </div>
+      </div>
+
+      <div class="admin-dashboard" id="adminDashboard">
+          <div>
+              <div class="admin-icon">🏢</div>
+              <h1 class="admin-title" id="smartGreetingAdmin">Good Morning, Admin 👋</h1>
+          </div>
+          
+          <div class="welcome-badge">Material Control Team 💻</div>
+          <p class="admin-subtitle" id="systemStatusText">System Status: Live Firebase Connected.</p>
+
+          <div class="quick-stats">
+              <div class="stat-card">
+                  <div class="stat-left">
+                      <span class="stat-label">Active Batteries</span>
+                      <span class="stat-value" id="val-batteries">0</span>
+                      <span class="stat-trend syncing-text" id="trend-batteries">Loading...</span>
+                  </div>
+                  <div class="stat-icon">⚡</div>
+              </div>
+              <div class="stat-card">
+                  <div class="stat-left">
+                      <span class="stat-label">Trolleys Available</span>
+                      <span class="stat-value" id="val-trolleys">0</span>
+                      <span class="stat-trend syncing-text" id="trend-trolleys">Loading...</span>
+                  </div>
+                  <div class="stat-icon">🛒</div>
+              </div>
+              <div class="stat-card">
+                  <div class="stat-left">
+                      <span class="stat-label">PA Cover Buffer</span>
+                      <span class="stat-value" id="val-pacover">0</span>
+                      <span class="stat-trend syncing-text" id="trend-pacover">Loading...</span>
+                  </div>
+                  <div class="stat-icon">📦</div>
+              </div>
+              <div class="stat-card">
+                  <div class="stat-left">
+                      <span class="stat-label">Daily Movements</span>
+                      <span class="stat-value" id="val-movements">0</span>
+                      <span class="stat-trend syncing-text" id="trend-movements">Loading...</span>
+                  </div>
+                  <div class="stat-icon">📝</div>
+              </div>
+          </div>
+
+          <div class="dashboard-grid">
+              
+              <div class="dashboard-card">
+                  <h3>🎯 Live Sector Telemetry</h3>
+                  <div>
+                      <div class="kpi-ring-wrapper">
+                          <div class="kpi-ring ring-blue"><span class="kpi-ring-val">LIVE</span></div>
+                          <div class="kpi-text"><span class="kpi-title">Battery Scan Flow</span><span class="kpi-sub">Tracking Active</span></div>
+                      </div>
+                      <div class="kpi-ring-wrapper">
+                          <div class="kpi-ring ring-green"><span class="kpi-ring-val">LIVE</span></div>
+                          <div class="kpi-text"><span class="kpi-title">PA Cover Gasket Buffer</span><span class="kpi-sub">Tracking Active</span></div>
+                      </div>
+                      <div class="kpi-ring-wrapper">
+                          <div class="kpi-ring ring-orange"><span class="kpi-ring-val">LIVE</span></div>
+                          <div class="kpi-text"><span class="kpi-title">Trolley Maintenance Quota</span><span class="kpi-sub">Tracking Active</span></div>
+                      </div>
+                  </div>
+              </div>
+
+              <div class="dashboard-card">
+                  <h3>⚡ Quick Actions</h3>
+                  <div class="action-grid">
+                      <button class="btn-tiny primary" onclick="window.loadPage('Battery.html')">🔋 Log Battery</button>
+                      <button class="btn-tiny primary" onclick="window.loadPage('TrolleyMaint.html')">🛠️ Maint. Ticket</button>
+                      <button class="btn-tiny" onclick="window.loadPage('pacover.html')">📦 Audit Buffer</button>
+                      <button class="btn-tiny" onclick="window.loadPage('Buffer location.html')">🏭 Find Mech</button>
+                      <button class="btn-tiny" onclick="window.loadPage('Material Movement Report.html')">📝 Export Move</button>
+                      <button class="btn-tiny" onclick="window.loadPage('Work Time Monitoring Report.html')">⏱️ Export Time</button>
+                  </div>
+              </div>
+
+              <div class="dashboard-card">
+                  <h3>🚚 Live Logistics Queue</h3>
+                  <div class="logistics-timeline" id="live-logistics-queue">
+                      <div style="padding: 10px; color: #777; font-size: 0.9rem; font-weight: bold;">Loading live queue...</div>
+                  </div>
+              </div>
+
+          </div>
+      </div>
+
+      <div class="user-dashboard" id="userDashboard">
+          <div style="font-size: 4rem; margin-bottom: 10px; animation: floatIcon 3s ease-in-out infinite;">👋</div>
+          <h1 id="smartGreetingUser">Good Morning, User</h1>
+          <div class="welcome-badge" style="margin: 0 auto 20px auto;">Shift Active 🟢</div>
+          
+          <div class="dashboard-card" style="text-align: left; margin-top: 20px;">
+              <h3>⚡ My Shift Actions</h3>
+              <p style="color: #666; font-size: 0.9rem; margin-bottom: 15px;">Quick links for your daily tasks:</p>
+              <div class="action-grid">
+                  <button class="btn-tiny primary" onclick="window.loadPage('Battery.html')">🔋 Log Battery</button>
+                  <button class="btn-tiny primary" onclick="window.loadPage('Material Movement Report.html')">📝 Log Movement</button>
+                  <button class="btn-tiny" onclick="window.loadPage('pacover.html')">📦 Check PA Gasket</button>
+                  <button class="btn-tiny" onclick="window.loadPage('TrolleyMaint.html')">🛒 Trolley Issue</button>
+              </div>
+          </div>
+      </div>
+
+    </div>
+
+    <iframe id="contentFrame" class="content-frame"></iframe>
+
+    <div class="admin-panel" id="profilePage">
+        <div class="profile-card" style="background:white; padding:20px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05); max-width:400px;">
+          <h2 style="color:#0f5c9c; margin-bottom:20px;">User Profile</h2>
+          <div class="p-row" style="margin-bottom:10px;"><strong>👤 Username:</strong> <span id="pUser"></span></div>
+          <div class="p-row" style="margin-bottom:10px;"><strong>📧 Email:</strong> <span id="pEmail"></span></div>
+          <div class="p-row" style="margin-bottom:10px;"><strong>🛡️ Role:</strong> <span id="pRole"></span></div>
+          <br>
+          <div>
+            <button class="btn-action" onclick="window.editMyProfile()">✏️ Edit Email</button>
+            <button class="btn-action" onclick="window.changeMyPassword()">🔒 Reset Pwd</button>
+            <button class="btn-action" onclick="window.downloadProfile()">📥 Download</button>
+          </div>
+        </div>
+    </div>
+
+    <div class="admin-panel" id="userManagement">
+      <h2 style="color:#0f5c9c; margin-bottom: 20px;">👨‍💼 User Management</h2>
+      <button class="btn-submit" onclick="window.openUserModal('add')" style="width:auto; margin-bottom:20px;">+ Add New User</button>
+      <table>
+        <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
+        <tbody id="usersTableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="admin-panel" id="sidebarControl">
+      <h2 style="color:#0f5c9c; margin-bottom: 20px;">🎛️ Sidebar Control</h2>
+      <div style="background:white; padding:20px; border-radius:8px; margin-bottom:20px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+        <h3 style="margin-bottom:15px;">🆕 Custom Buttons</h3>
+        <button class="btn-submit" onclick="window.openButtonModal()" style="width:auto; margin-bottom:15px;">+ Add Button</button>
+        <div id="customButtonList"></div>
+      </div>
+      <div style="background:white; padding:20px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+        <h3 style="margin-bottom:15px;">🖥️ Visibility Settings</h3>
+        <label style="font-weight: bold;">Select User:</label>
+        <select id="permUserSelect" onchange="window.loadUserPerms()" style="padding:8px; margin-left:10px; margin-bottom:15px; border-radius:4px; border:1px solid #ccc;"></select>
+        <div id="permCheckboxes" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;"></div>
+        <button class="btn-submit" onclick="window.savePerms()" style="width:auto; margin-top:20px;">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="userModal" class="modal">
+    <div class="modal-content">
+      <h3 style="margin-bottom:15px; color:#0f5c9c;">User Details</h3>
+      <div class="form-group"><label>Username</label><input id="newUsername" type="text" onkeyup="window.autoFillEmail()"></div>
+      <div class="form-group"><label>Email (Auto)</label><input id="newEmail" type="text" readonly></div>
+      <div class="form-group"><label>Password</label><input id="newPassword" type="password" placeholder="Set Password"></div>
+      <div class="form-group"><label>Role</label><select id="newRole"><option value="user">User</option><option value="admin">Admin</option></select></div>
+      <button class="btn-submit" onclick="window.saveUserLogic()">Save</button>
+      <button onclick="window.closeModal('userModal')" style="width:100%; padding:10px; background:transparent; border:none; margin-top:5px; cursor:pointer; font-weight:bold;">Cancel</button>
+    </div>
+  </div>
+
+  <div id="btnModal" class="modal">
+    <div class="modal-content">
+      <h3 style="margin-bottom:15px; color:#0f5c9c;">Custom Button</h3>
+      <div class="form-group"><label>Name</label><input id="cName" placeholder="e.g. Google"></div>
+      <div class="form-group"><label>Icon</label><input id="cIcon" placeholder="e.g. 🌐"></div>
+      <div class="form-group"><label>URL</label><input id="cUrl" placeholder="https://..."></div>
+      <button class="btn-submit" onclick="window.saveNewButton()">Add</button>
+      <button onclick="window.closeModal('btnModal')" style="width:100%; padding:10px; background:transparent; border:none; margin-top:5px; cursor:pointer; font-weight:bold;">Cancel</button>
+    </div>
+  </div>
+
+  <script>
+    // --- THIS USES PLAIN JAVASCRIPT, NO MODULES REQUIRED ---
+    
+    // 🔴 YOUR FIREBASE CONFIG GOES HERE 🔴
+    const firebaseConfig = {
+        apiKey: "AIzaSyAiZl9YhGsfKIKTTK5hMqqhWoIiYbri9rI",
+        authDomain: "material-controler.firebaseapp.com",
+        projectId: "material-controler",
+        storageBucket: "material-controler.firebasestorage.app",
+        messagingSenderId: "782401252699",
+        appId: "1:782401252699:web:19d6775e92c428c224fe7e"
+    };
+
+    let firestoreDb = null;
+    try {
+        firebase.initializeApp(firebaseConfig);
+        firestoreDb = firebase.firestore();
+    } catch(e) {
+        console.error("Firebase init failed", e);
+    }
+
+    // Global State Variables
+    window.currentUser = null;
+    window.editingIndex = -1;
+    window.usersData = [];
+    window.customButtonsData = {};
+    window.sidebarSettingsData = {};
+    
+    const btnMap = { 
+        homeBtn: '🏠 Home', awardBtn: '🎖️ Award Data', batteryBtn: '⚡️ Battery Tracking', 
+        gasketBtn: '📦 PA Cover Gasket', trolleyBtn: '🛒 Trolley Maint.', mechBufferBtn: '🏭 Mech Buffer',
+        invTagBtn: '🏷️ Inventory Tag', moveReportBtn: '📝 Movement Report', workTimeReportBtn: '⏰ Work Time Report', 
+        profileBtn: '👨🏻‍💼 Profile' 
+    };
+
+    function animateValue(id, start, end, duration) {
+        if (start === end) { document.getElementById(id).innerHTML = end; return; }
+        let obj = document.getElementById(id);
+        let startTimestamp = null;
+        const step = (timestamp) => {
+            if (!startTimestamp) startTimestamp = timestamp;
+            const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+            const easeOut = 1 - Math.pow(1 - progress, 4);
+            obj.innerHTML = Math.floor(easeOut * (end - start) + start);
+            if (progress < 1) window.requestAnimationFrame(step);
+            else obj.innerHTML = end; 
+        };
+        window.requestAnimationFrame(step);
+    }
+
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('liveTime').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('liveDate').innerText = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    setInterval(updateClock, 1000);
+
+    window.onload = async function() {
+        let u = localStorage.getItem('currentUser');
+        if(!u) window.currentUser = {username: "Admin", role: "admin", email: "admin@nokia.com"};
+        else window.currentUser = JSON.parse(u);
+        
+        document.getElementById('currentUserName').textContent = window.currentUser.username;
+        document.getElementById('currentUserEmail').textContent = window.currentUser.email;
+        if(window.currentUser.role === 'admin') document.getElementById('adminArea').style.display = 'block';
+        
+        updateClock(); 
+        
+        if (firestoreDb) {
+            listenToUsers();
+            listenToSettings();
+        }
+
+        const lastPage = localStorage.getItem('lastActivePage');
+        if(lastPage && lastPage !== 'home' && lastPage !== 'Index.html') window.loadPage(lastPage, false);
+        else window.showWelcome(); 
+
+        if (!document.getElementById('sidebar').classList.contains('closed')) document.getElementById('clickCatcher').style.display = 'block';
+    };
+
+    // --- REAL TIME DASHBOARD DATA ---
+    window.fetchDashboardStats = function() {
+        if(!firestoreDb) return;
+
+        // Active Batteries Real-time Count (UPDATED LOGIC)
+        firestoreDb.collection("battery_logs").onSnapshot(snap => {
+            let activeCount = 0;
+            snap.forEach(doc => {
+                const data = doc.data();
+                if (data.battery_status === 'working' || data.battery_status === 'active') {
+                    activeCount++;
+                }
+            });
+            animateValue('val-batteries', parseInt(document.getElementById('val-batteries').innerText) || 0, activeCount, 1000);
+            document.getElementById('trend-batteries').innerText = "Live Synced";
+            document.getElementById('trend-batteries').classList.remove("syncing-text");
+        }, err => console.error(err));
+
+        // Trolleys Real-time Count
+        firestoreDb.collection("trolley_data").onSnapshot(snap => {
+            animateValue('val-trolleys', parseInt(document.getElementById('val-trolleys').innerText) || 0, snap.size, 1000);
+            document.getElementById('trend-trolleys').innerText = "Live Synced";
+            document.getElementById('trend-trolleys').classList.remove("syncing-text");
+        }, err => console.error(err));
+
+        // PA Cover Real-time Count
+        firestoreDb.collection("pacover_data").onSnapshot(snap => {
+            animateValue('val-pacover', parseInt(document.getElementById('val-pacover').innerText) || 0, snap.size, 1000);
+            document.getElementById('trend-pacover').innerText = "Live Synced";
+            document.getElementById('trend-pacover').classList.remove("syncing-text");
+        }, err => console.error(err));
+
+        // Movements Real-time Count
+        firestoreDb.collection("movement_data").onSnapshot(snap => {
+            animateValue('val-movements', parseInt(document.getElementById('val-movements').innerText) || 0, snap.size, 1000);
+            document.getElementById('trend-movements').innerText = "Live Synced";
+            document.getElementById('trend-movements').classList.remove("syncing-text");
+        }, err => console.error(err));
+    }
+
+    // --- REAL TIME LOGISTICS QUEUE ---
+    window.fetchLiveLogistics = function() {
+        if(!firestoreDb) return;
+
+        // Use onSnapshot for live automatic updates instead of .get()
+        firestoreDb.collection("movement_data").orderBy("timestamp", "desc").limit(3).onSnapshot(querySnapshot => {
+            let queueHTML = '';
+            let index = 1;
+            
+            if (querySnapshot.empty) {
+                queueHTML = '<div style="padding: 10px; color: #777; font-weight: bold;">No recent movements found in database.</div>';
+            } else {
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    let statusClass = "status-transit"; let dotClass = "dot-blue"; 
+                    if (data.status === "Arrived" || data.status === "Completed") { statusClass = "status-arrived"; dotClass = "dot-green"; } 
+                    else if (data.status === "Pending" || data.status === "Preparing") { statusClass = "status-prep"; dotClass = "dot-orange"; }
+
+                    let timeString = "Just Now";
+                    if (data.timestamp && data.timestamp.toDate) {
+                        timeString = data.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    }
+
+                    queueHTML += `
+                        <div class="timeline-item" style="animation: slideInRight 0.5s forwards ${0.5 + (index * 0.1)}s;">
+                            <div class="timeline-dot ${dotClass}"></div>
+                            <span class="timeline-time">${timeString}</span>
+                            <div class="timeline-desc">${data.description || 'Material movement logged'}</div>
+                            <div class="timeline-status ${statusClass}">${data.status || 'In Transit'}</div>
+                        </div>`;
+                    index++;
+                });
+            }
+            document.getElementById('live-logistics-queue').innerHTML = queueHTML;
+
+        }, error => { 
+            console.error("Firebase queue failed to listen.", error);
+            document.getElementById('live-logistics-queue').innerHTML = '<div style="padding: 10px; color: red; font-weight: bold;">Error loading live queue. Check Database connection.</div>';
+        });
+    }
+
+    // --- UTILITIES & ADMIN FUNCTIONS ---
+    async function listenToUsers() {
+        firestoreDb.collection("users").onSnapshot((snapshot) => {
+            window.usersData = [];
+            snapshot.forEach(doc => window.usersData.push(doc.data()));
+            if(window.usersData.length === 0) firestoreDb.collection("users").doc("admin").set({username:'admin', email:'admin@nokia.com', password:'admin123', role:'admin'});
+            if(document.getElementById('userManagement').style.display === 'block') window.renderUsers();
+            if(document.getElementById('sidebarControl').style.display === 'block') {
+                document.getElementById('permUserSelect').innerHTML = window.usersData.map(u => `<option value="${u.username}">${u.username}</option>`).join('');
+                window.loadUserPerms();
+            }
+        });
+    }
+
+    async function listenToSettings() {
+        firestoreDb.collection("system_settings").doc("sidebar").onSnapshot((docSnap) => {
+            if(docSnap.exists) {
+                const data = docSnap.data();
+                window.customButtonsData = data.buttons || {}; window.sidebarSettingsData = data.perms || {};
+            }
+            window.applySidebarPerms();
+            if(document.getElementById('sidebarControl').style.display === 'block') { window.renderCustomList(); window.loadUserPerms(); }
+        });
+    }
+
+    async function saveSettingsToFirebase() {
+        if(!firestoreDb) return;
+        await firestoreDb.collection("system_settings").doc("sidebar").set({ buttons: window.customButtonsData, perms: window.sidebarSettingsData }, { merge: true });
+    }
+
+    window.autoFillEmail = function() { 
+        if(window.editingIndex === -1) document.getElementById('newEmail').value = document.getElementById('newUsername').value.replace(/\s+/g, '').toLowerCase() + "@nokia.com"; 
+    }
+    window.toggleFullScreen = function() { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+    window.toggleSidebar = function() { 
+        const sb = document.getElementById('sidebar'), cnt = document.getElementById('content'), catcher = document.getElementById('clickCatcher');
+        sb.classList.toggle('closed'); cnt.classList.toggle('expanded');
+        catcher.style.display = sb.classList.contains('closed') ? 'none' : 'block';
+        if(window.innerWidth < 768) document.getElementById('overlay').classList.toggle('show');
+    }
+    window.hideAll = function() { 
+        ['welcomeScreen','contentFrame','sidebarControl','userManagement','profilePage'].forEach(id => document.getElementById(id).style.display='none'); 
+        document.querySelectorAll('.sidebar button').forEach(b => b.classList.remove('active'));
+    }
+    window.loadPage = function(url, save = true) { 
+        window.hideAll(); const f = document.getElementById('contentFrame'); f.style.display='block'; f.src=url;
+        if(save) localStorage.setItem('lastActivePage', url);
+        if(window.innerWidth < 768) window.toggleSidebar();
+    }
+    window.updateGreeting = function() {
+        const hour = new Date().getHours(); let greeting = "Good Evening";
+        if (hour < 12) greeting = "Good Morning"; else if (hour < 18) greeting = "Good Afternoon";
+        const userText = window.currentUser ? window.currentUser.username : "Team";
+        document.getElementById('smartGreetingAdmin').innerText = `${greeting}, ${userText} 👋`;
+        document.getElementById('smartGreetingUser').innerText = `${greeting}, ${userText}`;
+    }
+    window.showWelcome = function() { 
+        window.hideAll(); window.updateGreeting(); 
+        const ws = document.getElementById('welcomeScreen'); ws.style.display = 'flex'; localStorage.setItem('lastActivePage', 'home'); 
+        
+        if (window.currentUser && window.currentUser.role === 'admin') {
+            document.getElementById('adminDashboard').style.display = 'block'; document.getElementById('userDashboard').style.display = 'none';
+            ws.classList.remove('animate-in'); setTimeout(() => { ws.classList.add('animate-in'); window.fetchDashboardStats(); window.fetchLiveLogistics(); }, 50);
+        } else {
+            document.getElementById('adminDashboard').style.display = 'none'; document.getElementById('userDashboard').style.display = 'block';
+            ws.classList.remove('animate-in'); setTimeout(() => ws.classList.add('animate-in'), 50);
+        }
+        if(window.innerWidth < 768) window.toggleSidebar();
+    }
+    window.handleLogout = function() { localStorage.removeItem('currentUser'); localStorage.removeItem('lastActivePage'); location='Index.html'; }
+    window.closeModal = function(id) { document.getElementById(id).style.display='none'; }
+
+    // --- PROFILE & USER MGMT ---
+    window.showProfile = function() {
+        window.hideAll(); document.getElementById('profilePage').style.display='block';
+        document.getElementById('pUser').innerText=window.currentUser.username;
+        document.getElementById('pEmail').innerText=window.currentUser.email;
+        document.getElementById('pRole').innerText=window.currentUser.role;
+        if(window.innerWidth < 768) window.toggleSidebar();
+    }
+    window.editMyProfile = async function() {
+        const newE = prompt("Edit Email:", window.currentUser.email);
+        if(newE && firestoreDb) {
+            try { await firestoreDb.collection("users").doc(window.currentUser.username).update({ email: newE });
+            window.currentUser.email = newE; localStorage.setItem('currentUser', JSON.stringify(window.currentUser));
+            window.showProfile(); document.getElementById('currentUserEmail').innerText = newE; } catch(e) {}
+        }
+    }
+    window.changeMyPassword = async function() {
+        const p = prompt("New Password:");
+        if(p && firestoreDb) { try { await firestoreDb.collection("users").doc(window.currentUser.username).update({ password: p }); alert("Updated"); } catch(e) {} }
+    }
+    window.downloadProfile = function() {
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([`Profile\nUser: ${window.currentUser.username}\nEmail: ${window.currentUser.email}`],{type:'text/plain'})); a.download='profile.txt'; a.click();
+    }
+    window.showSidebarControl = function() {
+        window.hideAll(); document.getElementById('sidebarControl').style.display='block';
+        document.getElementById('permUserSelect').innerHTML = window.usersData.map(u => `<option value="${u.username}">${u.username}</option>`).join('');
+        window.loadUserPerms(); window.renderCustomList(); if(window.innerWidth < 768) window.toggleSidebar();
+    }
+    window.openButtonModal = function() { document.getElementById('cName').value=''; document.getElementById('cIcon').value=''; document.getElementById('cUrl').value=''; document.getElementById('btnModal').style.display='flex'; }
+    window.saveNewButton = async function() {
+        const n = document.getElementById('cName').value, i = document.getElementById('cIcon').value || '🔗', u = document.getElementById('cUrl').value;
+        if(!n || !u) return alert("Required"); const newId = 'cust_' + Date.now(); window.customButtonsData[newId] = {name: n, icon: i, url: u}; 
+        if (!window.sidebarSettingsData[window.currentUser.username]) window.sidebarSettingsData[window.currentUser.username] = {}; 
+        window.sidebarSettingsData[window.currentUser.username][newId] = true; await saveSettingsToFirebase(); window.closeModal('btnModal'); 
+    }
+    window.renderCustomList = function() {
+        let h = ''; for(let id in window.customButtonsData) h+=`<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;"><span>${window.customButtonsData[id].icon} ${window.customButtonsData[id].name}</span><button onclick="window.delBtn('${id}')" style="color:red;border:none;background:none;cursor:pointer;font-size:1.1rem;">🗑️</button></div>`;
+        document.getElementById('customButtonList').innerHTML = h || 'No buttons.';
+    }
+    window.delBtn = async function(id) { if(confirm("Delete?")){ delete window.customButtonsData[id]; await saveSettingsToFirebase(); } }
+    window.loadUserPerms = function() {
+        const u = document.getElementById('permUserSelect').value; const set = window.sidebarSettingsData[u] || {}; let h = ''; 
+        for(let id in btnMap) h += `<div style="padding:8px; border:1px solid #eee; background:white; display:flex; justify-content:space-between; border-radius:6px; align-items:center;"><span>${btnMap[id]}</span><input type="checkbox" id="chk_${id}" ${set[id]!==false ? 'checked' : ''}></div>`;
+        for(let id in window.customButtonsData) h += `<div style="padding:8px; border:1px solid #eee; background:white; display:flex; justify-content:space-between; border-radius:6px; align-items:center;"><span style="color:#0f5c9c;">${window.customButtonsData[id].name} (C)</span><input type="checkbox" id="chk_${id}" ${set[id]!==false ? 'checked' : ''}></div>`;
+        document.getElementById('permCheckboxes').innerHTML = h;
+    }
+    window.savePerms = async function() {
+        const u = document.getElementById('permUserSelect').value; if (!window.sidebarSettingsData[u]) window.sidebarSettingsData[u] = {}; 
+        for(let id in btnMap) { const chk = document.getElementById('chk_'+id); if(chk) window.sidebarSettingsData[u][id] = chk.checked; }
+        for(let id in window.customButtonsData) { const chk = document.getElementById('chk_'+id); if(chk) window.sidebarSettingsData[u][id] = chk.checked; }
+        await saveSettingsToFirebase(); alert('Saved'); 
+    }
+    window.applySidebarPerms = function() {
+        if(!window.currentUser) return;
+        const s = window.sidebarSettingsData[window.currentUser.username] || {}; const c = window.customButtonsData || {};
+        for(let id in btnMap) { const isVisible = (s[id] !== false); const e = document.getElementById(id); if(e) e.style.display = isVisible ? 'flex' : 'none'; }
+        let ch = ''; for(let id in c) { if(s[id] !== false) ch += `<button onclick="window.loadPage('${c[id].url}')">${c[id].icon} ${c[id].name}</button>`; }
+        document.getElementById('customSidebarArea').innerHTML = ch;
+    }
+    window.showUserMgmt = function() { window.hideAll(); document.getElementById('userManagement').style.display='block'; window.renderUsers(); if(window.innerWidth < 768) window.toggleSidebar(); }
+    window.renderUsers = function() {
+        document.getElementById('usersTableBody').innerHTML = window.usersData.map((u,i) => `
+            <tr><td>${u.username}</td><td>${u.email}</td><td>${u.role}</td>
+            <td><button class="btn-action" onclick="window.openUserModal('edit', ${i})">✏️</button><button class="btn-action" onclick="window.resetUserPwd('${u.username}', ${i})">🔒</button>
+            ${u.username!==window.currentUser.username ? `<button class="btn-action" style="color:red; border-color:red;" onclick="window.delUser('${u.username}')">🗑️</button>` : ''}</td></tr>
+        `).join('');
+    }
+    window.openUserModal = function(mode, index) {
+        window.editingIndex = mode === 'edit' ? index : -1;
+        const userIn = document.getElementById('newUsername'), emailIn = document.getElementById('newEmail'), roleIn = document.getElementById('newRole'), passIn = document.getElementById('newPassword'); passIn.value = ''; 
+        if(mode === 'add') { userIn.value = ''; emailIn.value = ''; userIn.disabled = false; } 
+        else { const u = window.usersData[index]; userIn.value = u.username; userIn.disabled = true; emailIn.value = u.email; roleIn.value = u.role; }
+        document.getElementById('userModal').style.display = 'flex';
+    }
+    window.saveUserLogic = async function() {
+        const uVal = document.getElementById('newUsername').value, eVal = document.getElementById('newEmail').value, rVal = document.getElementById('newRole').value, pVal = document.getElementById('newPassword').value;
+        if(!uVal || !eVal) return alert("Required"); if(!firestoreDb) return;
+        try {
+            if(window.editingIndex === -1) { await firestoreDb.collection("users").doc(uVal).set({ username: uVal, email: eVal, password: pVal || '1234', role: rVal }); } 
+            else { 
+                const targetUser = window.usersData[window.editingIndex].username; let updateData = { email: eVal, role: rVal };
+                if(pVal) updateData.password = pVal; await firestoreDb.collection("users").doc(targetUser).update(updateData);
+            }
+            window.closeModal('userModal');
+        } catch(e) { console.error(e); }
+    }
+    window.resetUserPwd = async function(name, i) { 
+        const newP = prompt(`New password for ${name}:`); 
+        if(newP && firestoreDb) { try { await firestoreDb.collection("users").doc(name).update({ password: newP }); alert("Success"); } catch(e) { console.error(e); } } 
+    }
+    window.delUser = async function(username) { 
+        if(confirm(`Delete ${username}?`) && firestoreDb) { try { await firestoreDb.collection("users").doc(username).delete(); } catch(e) { console.error(e); } } 
+    }
+  </script>
+</body>
+</html>
