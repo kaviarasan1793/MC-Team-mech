@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Material Movement Report</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #0340a0;
+            --accent: #3b82f6;
+            --purple: #8b5cf6;
+            --danger: #ef4444;
+            --bg: #f5f7fa;
+            --border: #d4dce8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background: var(--bg); padding: 5px; color: #334155; }
+
+        .container { max-width: 100%; margin: 0 auto; display: grid; gap: 8px; }
+        
+        header { 
+            background: white; padding: 10px; border-radius: 4px; 
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        header h1 { color: var(--primary); font-size: 24px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+
+        /* SNAPSHOT HEADER - MOVED FURTHER UP */
+        #snapshot-header { 
+            display: none; 
+            text-align: center; 
+            padding: 5px 0 10px 0; /* Minimal top padding */
+            background: white; 
+            border-bottom: 3px solid var(--primary); 
+            width: 100%;
+            margin: 0;
+        }
+
+        .stats-bar { 
+            background: white; padding: 8px 20px; border-radius: 4px; border-bottom: 2px solid var(--primary);
+            display: flex; gap: 25px; font-size: 14px; font-weight: 700; color: var(--primary);
+            flex-wrap: wrap; justify-content: center;
+        }
+
+        .entry-card { background: white; padding: 15px 20px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .form-title { font-size: 18px; font-weight: 700; color: var(--primary); margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        
+        .form-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 15px; }
+        .input-box { display: flex; flex-direction: column; gap: 4px; }
+        label { font-size: 11px; font-weight: 700; color: #4e5257; text-transform: uppercase; }
+        input, select { padding: 8px 10px; border: 2px solid var(--border); border-radius: 3px; font-size: 13px; outline: none; background: white; }
+
+        .btn-group { display: flex; gap: 10px; align-items: center; margin-top: 5px; }
+        .btn { padding: 8px 18px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; color: white; }
+        .btn-add { background: var(--accent); }
+        .btn-view { background: var(--purple); }
+        .btn-clear { background: var(--danger); }
+        .search-box { margin-left: auto; padding: 7px 15px; border: 1px solid var(--border); border-radius: 20px; width: 250px; font-size: 12px; }
+
+        .table-area { background: white; border-radius: 4px; border: 1px solid var(--border); overflow: hidden; }
+        .table-wrapper { overflow-x: auto; max-height: 55vh; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { background: #3970c8; color: white; padding: 12px 10px; text-align: left; font-weight: 500; border-right: 1px solid #abbee7; position: sticky; top: 0; z-index: 10; }
+        td { padding: 8px 10px; border-bottom: 1px solid #9baec5; border-right: 1px solid #9baec5; line-height: 1.4; }
+        tr:nth-child(even) { background: #fafbfc; }
+
+        /* Snapshot Mode Overrides */
+        .screenshot-mode #snapshot-header { display: block !important; }
+        .screenshot-mode header, 
+        .screenshot-mode .entry-card, 
+        .screenshot-mode .stats-bar, 
+        .screenshot-mode .actions-cell { display: none !important; }
+        
+        .screenshot-mode { padding: 0 !important; margin: 0 !important; background: white; }
+        .screenshot-mode .container { gap: 0; }
+        .screenshot-mode .table-area { border: none; }
+        .screenshot-mode .table-wrapper { max-height: none; }
+
+        .exit-ss { display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 2000; background: #1e293b; color: white; }
+        .screenshot-mode .exit-ss { display: flex; }
+
+        /* Modal View */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; padding: 10px; }
+        .modal-content { background: white; width: 98%; max-height: 98vh; margin: 0 auto; display: flex; flex-direction: column; border-radius: 4px; }
+        .modal-header { padding: 12px 15px; border-bottom: 2px solid var(--primary); display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 15px; overflow-y: auto; flex: 1; }
+
+        .badge { padding: 3px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+        .bg-green { background: #d1fae5; color: #065f46; }
+        .bg-red { background: #fecaca; color: #991b1b; }
+        .bg-yellow { background: #fef3c7; color: #92400e; }
+
+        @media (max-width: 1400px) { .form-grid { grid-template-columns: repeat(3, 1fr); } }
+    </style>
+</head>
+<body>
+
+    <button class="btn exit-ss" onclick="window.exitScreenshot()">✖ EXIT SNAPSHOT MODE</button>
+
+    <div id="snapshot-header">
+        <h2 style="color: var(--primary); font-size: 26px;">🧾 Material Movement Report</h2>
+        <p id="snapshot-time" style="font-size: 13px; color: #64748b; margin-top: 4px; font-weight: 600;"></p>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>🧾 Material Movement Report</h1>
+        </header>
+
+        <div class="stats-bar">
+            <span>Total Entries : <b id="stat-total">0</b></span>
+            <span>NO PLAN : <b id="stat-noplan">0</b></span>
+            <span>Material Moved : <b id="stat-moved">0</b></span>
+            <span>No Pending : <b id="stat-nopending">0</b></span>
+            <span>Pending : <b id="stat-pending">0</b></span>
+        </div>
+
+        <div class="entry-card">
+            <div class="form-title">📝 Add New Entry</div>
+            <input type="hidden" id="editId">
+            <div class="form-grid">
+                <div class="input-box"><label>PRODUCT</label><select id="product"><option value="">Select</option><option value="MN">MN</option><option value="FN">FN</option><option value="FILTER">FILTER</option></select></div>
+                <div class="input-box"><label>LINE / MODEL</label><input type="text" id="model" placeholder="e.g., ARDB"></div>
+                <div class="input-box"><label>TYPE</label><select id="type"><option value="">Select</option><option value="Kitting Trolley">Kitting Trolley</option><option value="Manual">Manual</option></select></div>
+                <div class="input-box"><label>PLAN COVERAGE</label><select id="planCoverage"><option value="">Select</option><option value="Shift">Shift</option><option value="A">A</option><option value="B">B</option><option value="C">C</option></select></div>
+                <div class="input-box"><label>PLAN</label><input type="text" id="plan" placeholder="Enter plan"></div>
+                <div class="input-box"><label>KITTING MOVEMENT STATUS</label><select id="knittingStatus"><option value="">Select</option><option value="Material moved to line">Material moved to line</option><option value="NO PLAN">NO PLAN</option><option value="Material not moved to line">Material not moved to line</option></select></div>
+                <div class="input-box"><label>EVERY SHIFT STARTING - MANUALLY MATERIAL MOVEMENT</label><input type="text" id="pieceMaterial" placeholder="NA or details"></div>
+                <div class="input-box"><label>MATERIAL MOVEMENT WITH COVER</label><input type="text" id="materialCover" placeholder="NA or details"></div>
+                <div class="input-box"><label>PICKING PENDING PART CODE & QTY</label><input type="text" id="partCodeQty" placeholder="ABC-123 / 5"></div>
+                <div class="input-box"><label>KITTING TROLLEY PICKING PENDING STATUS</label><select id="trolleyStatus"><option value="">Select</option><option value="No Pending">No Pending</option><option value="Pending">Pending</option><option value="No Plan">No Plan</option></select></div>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-add" id="saveBtn" onclick="window.handleSave()">✅ ADD</button>
+                <button class="btn btn-view" onclick="window.openFullView()">📝 View Full</button>
+                <button class="btn btn-clear" onclick="window.clearAllData()">🗑️ Clear All</button>
+                <input type="text" id="searchBar" class="search-box" placeholder="🔍 Search..." onkeyup="window.renderTable()">
+            </div>
+        </div>
+
+        <div class="table-area">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;">SI</th>
+                            <th>Product</th>
+                            <th>Line / Model</th>
+                            <th>Type</th>
+                            <th>Plan Coverage</th>
+                            <th>Plan</th>
+                            <th>Kitting Movement Status</th>
+                            <th>Every shift starting - Manually Material movement</th>
+                            <th>Material Movement with cover</th>
+                            <th>Picking pending part code & Qty</th>
+                            <th>Kitting trolley picking pending status</th>
+                            <th class="actions-cell">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="fullViewModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 style="color: var(--primary);">🧾 Material Movement Report</h2>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-add" onclick="window.enterScreenshot()">📸 SNAPSHOT</button>
+                    <button class="btn btn-clear" onclick="window.closeFullView()">CLOSE</button>
+                </div>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
+
+        // Your Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAiZl9YhGsfKIKTTK5hMqqhWoIiYbri9rI",
+            authDomain: "material-controler.firebaseapp.com",
+            projectId: "material-controler",
+            storageBucket: "material-controler.firebasestorage.app",
+            messagingSenderId: "782401252699",
+            appId: "1:782401252699:web:19d6775e92c428c224fe7e"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const firestoreDb = getFirestore(app);
+        const logsCollection = collection(firestoreDb, "material_movement_logs");
+
+        let db = [];
+
+        // Firebase Real-time Listener
+        document.addEventListener('DOMContentLoaded', () => {
+            const q = query(logsCollection, orderBy("timestamp", "desc"));
+            onSnapshot(q, (snapshot) => {
+                db = [];
+                snapshot.forEach((doc) => {
+                    db.push({ id: doc.id, ...doc.data() });
+                });
+                window.renderTable();
+                window.updateStats();
+            });
+        });
+
+        window.handleSave = async function() {
+            const id = document.getElementById('editId').value;
+            const entry = {
+                product: document.getElementById('product').value,
+                model: document.getElementById('model').value,
+                type: document.getElementById('type').value,
+                planCoverage: document.getElementById('planCoverage').value,
+                plan: document.getElementById('plan').value || '-',
+                knittingStatus: document.getElementById('knittingStatus').value,
+                pieceMaterial: document.getElementById('pieceMaterial').value || 'NA',
+                materialCover: document.getElementById('materialCover').value || 'NA',
+                partCodeQty: document.getElementById('partCodeQty').value || '-',
+                trolleyStatus: document.getElementById('trolleyStatus').value,
+                timestamp: Date.now() // for sorting
+            };
+            
+            if(!entry.product || !entry.model) return alert("Fill Product and Line/Model!");
+            
+            const btn = document.getElementById('saveBtn');
+            const origText = btn.innerText;
+            btn.innerText = "Saving...";
+            btn.disabled = true;
+
+            try {
+                if(id) { 
+                    await updateDoc(doc(firestoreDb, "material_movement_logs", id), entry);
+                } else { 
+                    await addDoc(logsCollection, entry);
+                }
+                window.resetForm(); 
+                document.getElementById('product').focus();
+            } catch (error) {
+                console.error("Firebase Error: ", error);
+                alert("Error Saving Data. Please check Firebase rules.");
+            } finally {
+                btn.innerText = "✅ ADD";
+                btn.disabled = false;
+            }
+        }
+
+        window.renderTable = function() {
+            const tbody = document.getElementById('tableBody');
+            const search = document.getElementById('searchBar').value.toLowerCase();
+            const filtered = db.filter(i => i.model.toLowerCase().includes(search) || i.product.toLowerCase().includes(search));
+            tbody.innerHTML = filtered.map((item, i) => `
+                <tr class="${item.knittingStatus === 'NO PLAN' ? 'row-noplan' : ''}">
+                    <td><b>${i+1}</b></td>
+                    <td><b>${item.product}</b></td>
+                    <td>${item.model}</td>
+                    <td>${item.type}</td>
+                    <td>${item.planCoverage}</td>
+                    <td>${item.plan}</td>
+                    <td><span class="badge ${window.getStatusClass(item.knittingStatus)}">${item.knittingStatus}</span></td>
+                    <td>${item.pieceMaterial}</td>
+                    <td>${item.materialCover}</td>
+                    <td>${item.partCodeQty}</td>
+                    <td><span class="badge ${window.getTrolleyClass(item.trolleyStatus)}">${item.trolleyStatus}</span></td>
+                    <td class="actions-cell">
+                        <button onclick="window.editItem('${item.id}')" style="border:none; background:none; cursor:pointer; font-size:16px;">✏️</button>
+                        <button onclick="window.deleteItem('${item.id}')" style="border:none; background:none; cursor:pointer; font-size:16px;">🗑️</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        window.getStatusClass = s => s === 'Material moved to line' ? 'bg-green' : (s === 'NO PLAN' ? 'bg-red' : 'bg-yellow');
+        window.getTrolleyClass = s => s === 'No Pending' ? 'bg-green' : (s === 'Pending' ? 'bg-red' : 'bg-yellow');
+
+        window.updateStats = function() {
+            document.getElementById('stat-total').innerText = db.length;
+            document.getElementById('stat-noplan').innerText = db.filter(x => x.knittingStatus === 'NO PLAN').length;
+            document.getElementById('stat-moved').innerText = db.filter(x => x.knittingStatus.includes('moved')).length;
+            document.getElementById('stat-nopending').innerText = db.filter(x => x.trolleyStatus === 'No Pending').length;
+            document.getElementById('stat-pending').innerText = db.filter(x => x.trolleyStatus === 'Pending').length;
+        }
+
+        window.resetForm = function() {
+            ['editId', 'model', 'plan', 'partCodeQty', 'pieceMaterial', 'materialCover'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('saveBtn').innerText = "✅ ADD";
+        }
+
+        window.editItem = function(id) {
+            const i = db.find(x => x.id === id);
+            if(!i) return;
+            Object.keys(i).forEach(key => { 
+                if(document.getElementById(key) && key !== 'id' && key !== 'timestamp') {
+                    document.getElementById(key).value = i[key]; 
+                }
+            });
+            document.getElementById('editId').value = id;
+            document.getElementById('saveBtn').innerText = "✏️ UPDATE";
+            window.scrollTo({top: 0, behavior: 'smooth'});
+        }
+
+        window.deleteItem = async function(id) { 
+            if(confirm('Delete this entry?')) { 
+                try {
+                    await deleteDoc(doc(firestoreDb, "material_movement_logs", id));
+                } catch(e) {
+                    console.error(e);
+                    alert("Error deleting entry");
+                }
+            } 
+        }
+        
+        window.clearAllData = async function() { 
+            if(confirm('Clear ALL data? This action cannot be undone.')) { 
+                const btn = document.querySelector('.btn-clear');
+                const origText = btn.innerText;
+                btn.innerText = "Clearing...";
+                btn.disabled = true;
+
+                try {
+                    const snapshot = await getDocs(logsCollection);
+                    const batch = writeBatch(firestoreDb);
+                    snapshot.docs.forEach((d) => batch.delete(d.ref));
+                    await batch.commit();
+                } catch(e) {
+                    console.error(e);
+                    alert("Error clearing data.");
+                } finally {
+                    btn.innerText = origText;
+                    btn.disabled = false;
+                }
+            } 
+        }
+
+        window.openFullView = function() {
+            const body = document.getElementById('modalBody');
+            body.innerHTML = document.querySelector('.table-area').innerHTML;
+            document.getElementById('fullViewModal').style.display = 'block';
+        }
+
+        window.closeFullView = function() { document.getElementById('fullViewModal').style.display = 'none'; }
+        
+        window.enterScreenshot = function() {
+            document.getElementById('snapshot-time').innerText = "Report Generated: " + new Date().toLocaleString();
+            document.body.classList.add('screenshot-mode');
+            window.closeFullView();
+            window.scrollTo(0,0);
+        }
+
+        window.exitScreenshot = function() { document.body.classList.remove('screenshot-mode'); }
+    </script>
+</body>
+</html>

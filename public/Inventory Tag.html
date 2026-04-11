@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Tag Pro</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
+    <style>
+        /* ================= PROFESSIONAL DASHBOARD UI ================= */
+        :root {
+            --primary: #0f172a; --accent: #2563eb; --bg: #f1f5f9; 
+            --surface: #ffffff; --border: #cbd5e1; --text: #1e293b;
+            --canvas-bg: #334155; --success: #10b981; --danger: #ef4444;
+        }
+
+        body { font-family: 'Inter', -apple-system, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 0; height: 100vh; display: flex; overflow: hidden; }
+        
+        .dashboard { display: flex; width: 100%; height: 100%; }
+
+        /* --- SIDEBAR SETTINGS --- */
+        .sidebar { width: 320px; background: #fff; border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; z-index: 20; box-shadow: 2px 0 10px rgba(0,0,0,0.05); }
+        
+        .sidebar-header { padding: 4px 60px; background: #f8fafc; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+        
+        .sidebar-header h2 { margin: 0; font-size: 16px; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        .sidebar-content { flex: 1; overflow-y: auto; padding: 12px; }
+        
+        .card { border: 1px solid #b7d0ef; border-radius: 6px; padding: 10px; margin-bottom: 13px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
+        .card-title { font-size: 13px; font-weight: 700; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center; }
+
+        .input-group { display: flex; gap: 9px; margin-bottom: 9px; }
+        .input-group > div { flex: 1; display: flex; flex-direction: column; }
+        
+        label { font-size: 12.5px; font-weight: 600; color: #64748b; margin-bottom: 4px; }
+        input, select { width: 100%; padding: 0 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; box-sizing: border-box; background: #fff; height: 30px; color: #0f172a; outline: none; transition: 0.2s; }
+        input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(37,99,235,0.1); }
+
+        .upload-zone { border: 1.5px dashed var(--accent); background: #eff6ff; padding: 12px; text-align: center; border-radius: 5px; margin-top: 5px; cursor: pointer; transition: 0.3s; }
+        .upload-zone:hover { background: #e0f2fe; }
+        .upload-zone input[type="file"] { font-size: 12px; color: #64748b; width: 100%; cursor: pointer; }
+        
+        #file-details { font-size: 11px; font-weight: 600; color: var(--success); margin-top: 6px; display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; background: #ecfdf5; border-radius: 4px; display: none; border: 1px solid #a7f3d0; }
+        .clear-btn { color: var(--danger); cursor: pointer; font-weight: bold; background: none; border: none; font-size: 11px; padding: 2px 5px; border-radius: 3px; }
+        .clear-btn:hover { background: #fee2e2; }
+
+        .btn { border: none; border-radius: 5px; font-weight: 700; cursor: pointer; transition: 0.2s; color: #fff; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .btn-format { background: #f59e0b; font-size: 13px; padding: 4px 8px; }
+        .btn-format:hover { background: #d97706; }
+
+        .sidebar-footer { padding: 20px; border-top: 1px solid var(--border); background: #f8fafc; }
+        .btn-generate { background: var(--accent); width: 90%; height: 40px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 2px 4px rgba(37,99,235,0.2); margin: 0 auto; border-radius: 7px; }
+        .btn-generate:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 4px 6px rgba(37,99,235,0.3); }
+
+        /* --- PREVIEW WORKSPACE & TOP TOOLBAR --- */
+        .preview-area { flex: 1; display: flex; flex-direction: column; background: var(--canvas-bg); position: relative; }
+        
+        .preview-toolbar { 
+            min-height: 50px; background: #fff; border-bottom: 1px solid var(--border); 
+            display: flex; align-items: center; justify-content: space-between; 
+            padding: 8px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); z-index: 10; flex-wrap: wrap; gap: 10px;
+        }
+        
+        .preview-title { font-weight: 700; color: var(--primary); font-size: 15px; display: flex; align-items: center; gap: 10px; }
+        .badge { background: #e2e8f0; color: #334155; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 700; }
+
+        /* NEW PRINT CONTROLS (TOP RIGHT) */
+        .print-controls { 
+            display: flex; align-items: center; gap: 8px; 
+            background: #f8fafc; padding: 5px 12px; border-radius: 6px; border: 1px solid #cbd5e1;
+        }
+        .print-controls label { margin: 0; font-size: 12px; color: #475569; font-weight: 800; display: flex; align-items: center; gap: 4px; }
+        .print-controls input { width: 130px; height: 30px; font-size: 12px; border-radius: 4px; border: 1px solid #94a3b8; }
+        .print-controls .btn { height: 30px; padding: 0 12px; font-size: 12px; border-radius: 5px; }
+        
+        .btn-network { background: #10b981; box-shadow: 0 2px 4px rgba(16,185,129,0.2); }
+        .btn-network:hover { background: #059669; transform: translateY(-1px); }
+        
+        .btn-usb { background: #3b82f6; box-shadow: 0 2px 4px rgba(59,130,246,0.2); }
+        .btn-usb:hover { background: #2563eb; transform: translateY(-1px); }
+        
+        .btn-pdf { background: #ef4444; box-shadow: 0 2px 4px rgba(239,68,68,0.2); }
+        .btn-pdf:hover { background: #dc2626; transform: translateY(-1px); }
+
+        .divider { width: 2px; height: 20px; background: #cbd5e1; margin: 0 4px; border-radius: 2px; }
+
+        .canvas-container { flex: 1; overflow-y: auto; padding: 40px 20px; display: flex; justify-content: center; align-items: flex-start; }
+
+        /* --- TAG DESIGN & SIZES --- */
+        #print-container { 
+            display: grid; background: white; padding: 10mm; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5); 
+            border-radius: 2px; height: fit-content;
+            transition: all 0.3s ease;
+        }
+        
+        .empty-state { text-align: center; color: #94a3b8; padding: 100px 0; grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+
+        .tag-wrapper { background: #fff; border: 1px dashed #cbd5e1; box-sizing: border-box; padding: 2px; position: relative; page-break-inside: avoid; }
+        .tag-inner { border: 1.5px solid #000; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background: #fff; }
+        
+        .tag-header { text-align: center; font-weight: 800; border-bottom: 1.5px solid #000; padding: 1px 0; text-transform: uppercase; font-size: 7px; background: #f8fafc; position: relative; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .tag-seq { position: absolute; right: 3px; top: 1px; font-size: 6px; color: #475569; font-weight: 700; }
+
+        .tag-body { display: flex; flex: 1; align-items: stretch; }
+        .tag-details { flex: 1; display: flex; flex-direction: column; padding: 2px; gap: 1px; }
+        
+        .row { display: flex; border-bottom: 1px dotted #ccc; padding-bottom: 1px; align-items: center; }
+        .row:last-child { border-bottom: none; }
+        .lbl { font-weight: 800; color: #444; width: 40px; font-size: 5.5px; }
+        .val { font-weight: 800; color: #000; flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 7px; }
+        
+        .tag-qr-bar { width: 35%; border-left: 1px solid #000; display: flex; align-items: center; justify-content: center; padding: 2px; background: #fff; overflow: hidden; }
+        .barcode-svg { max-width: 100% !important; max-height: 100% !important; object-fit: contain; }
+        
+        .qty-write-box { flex: 1; height: 16px; background: #f8fafc; border: 1.5px solid #64748b; border-radius: 2px; margin-bottom: 1px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+        /* PHYSICAL PRINT SIZES */
+        #print-container.size-nano { grid-template-columns: repeat(4, 1.5in); gap: 0.1in; }
+        #print-container.size-nano .tag-wrapper { width: 1.5in; height: 1.0in; }
+        #print-container.size-nano .qty-write-box { height: 10px; }
+
+        #print-container.size-micro { grid-template-columns: repeat(3, 2.0in); gap: 0.1in; }
+        #print-container.size-micro .tag-wrapper { width: 2.0in; height: 1.25in; }
+        #print-container.size-micro .tag-header { font-size: 8.5px; }
+        #print-container.size-micro .lbl { font-size: 6.5px; width: 50px; }
+        #print-container.size-micro .val { font-size: 8px; }
+
+        #print-container.size-mini { grid-template-columns: repeat(2, 3.5in); gap: 0.15in; }
+        #print-container.size-mini .tag-wrapper { width: 3.5in; height: 2.0in; }
+        #print-container.size-mini .tag-header { font-size: 12px; padding: 3px 0; }
+        #print-container.size-mini .lbl { font-size: 9px; width: 70px; }
+        #print-container.size-mini .val { font-size: 11px; }
+        #print-container.size-mini .qty-write-box { height: 20px; }
+
+        #print-container.size-standard { grid-template-columns: repeat(2, 4.0in); gap: 0.2in; }
+        #print-container.size-standard .tag-wrapper { width: 4.0in; height: 2.5in; }
+        #print-container.size-standard .tag-header { font-size: 14px; padding: 4px 0; }
+        #print-container.size-standard .lbl { font-size: 11px; width: 80px; }
+        #print-container.size-standard .val { font-size: 14px; }
+        #print-container.size-standard .qty-write-box { height: 26px; }
+
+        /* Custom Size Base Styles */
+        #print-container.size-custom { display: flex; flex-wrap: wrap; gap: 5mm; }
+        #print-container.size-custom .tag-header { font-size: 10px; padding: 2px 0; }
+        #print-container.size-custom .lbl { font-size: 7.5px; width: 55px; }
+        #print-container.size-custom .val { font-size: 9px; }
+        #print-container.size-custom .qty-write-box { height: 18px; }
+
+        /* Print Media - Supports both A4 Grid and Thermal Roll based on selected mode */
+        @media print {
+            body { background: #fff; padding: 0; overflow: visible; height: auto; margin: 0; }
+            .sidebar, .preview-toolbar { display: none !important; }
+            .dashboard { display: block; }
+            .preview-area, .canvas-container { padding: 0; background: #fff; overflow: visible; display: block; }
+            #print-container { box-shadow: none; padding: 0; margin: 0; max-width: 100%; }
+            .qty-write-box { border: 1.5px solid #475569; }
+
+            /* THERMAL ROLL OVERRIDES */
+            body.print-roll @page { margin: 0; }
+            body.print-roll #print-container { display: block !important; }
+            body.print-roll .tag-wrapper {
+                width: 100vw !important;
+                height: 100vh !important;
+                border: none !important;
+                page-break-after: always;
+                break-after: page;
+                padding: 1mm;
+                box-sizing: border-box;
+            }
+            body.print-roll .tag-inner { border: 2px solid #000; height: 100%; }
+        }
+    </style>
+</head>
+<body class="print-a4">
+
+    <div class="dashboard">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <span style="font-size: 24px;">🏷️</span>
+                <h2>Inventory Tag</h2>
+            </div>
+
+            <div class="sidebar-content">
+                <div class="card">
+                    <div class="card-title">📝 Batch Info</div>
+                    <div class="input-group">
+                        <div>
+                            <label>Header (Auto-Caps)</label>
+                            <input type="text" id="headerTitle" placeholder="STOCK COUNT" oninput="this.value = this.value.toUpperCase()">
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <div style="flex: 1.2;">
+                            <label>Count Date</label>
+                            <input type="date" id="tagDate">
+                        </div>
+                        <div style="flex: 1;">
+                            <label>Shift</label>
+                            <select id="shift">
+                                <option value="A">Shift A</option>
+                                <option value="B">Shift B</option>
+                                <option value="C">Shift C</option>
+                                <option value="G">General</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <div>
+                            <label>Inspector Name</label>
+                            <input type="text" id="empName" placeholder="ENTER FULL NAME" oninput="this.value = this.value.toUpperCase()">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">⚙️ Output Settings</div>
+                    <div style="margin-bottom: 10px;">
+                        <label>Tag Dimension</label>
+                        <select id="tagSize" onchange="window.toggleCustomSize()">
+                            <option value="nano">Nano (1.5"x1.0")</option>
+                            <option value="micro" selected>Micro (2.0"x1.25")</option>
+                            <option value="mini">Mini (3.5"x2.0")</option>
+                            <option value="standard">Standard (4.0"x2.5")</option>
+                            <option value="custom">Custom Size (Manual Entry)</option>
+                        </select>
+                    </div>
+                    
+                    <div id="customDimensions" class="input-group" style="display: none; margin-bottom: 10px; background: #eff6ff; padding: 8px; border-radius: 4px; border: 1px dashed #2563eb;">
+                        <div>
+                            <label>Width (mm)</label>
+                            <input type="number" id="customW" placeholder="e.g. 50" value="50">
+                        </div>
+                        <div>
+                            <label>Height (mm)</label>
+                            <input type="number" id="customH" placeholder="e.g. 25" value="25">
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 10px;">
+                        <label>Scan Code Style</label>
+                        <select id="codeType">
+                            <option value="qr">QR Code (All Data)</option>
+                            <option value="barcode">Barcode (Compact)</option>
+                            <option value="none">Text Only (No Scan)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Print Format</label>
+                        <select id="printMode" onchange="window.changePrintMode()">
+                            <option value="a4" selected>A4 Sheet / PDF (Grid Layout)</option>
+                            <option value="roll">Thermal Roll (One per label)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-bottom: 0;">
+                    <div class="card-title">
+                        📂 Excel Data Source
+                        <button class="btn btn-format" onclick="window.downloadTemplate()">📥 Format</button>
+                    </div>
+                    <div class="upload-zone" onclick="document.getElementById('excelFile').click()">
+                        <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" style="display: none;">
+                        <div id="upload-text" style="font-size:12px; color:#64748b; margin-bottom: 5px;">Click to Browse or Drop File</div>
+                        <div id="file-details">
+                            <span id="file-name">No file</span>
+                            <button class="clear-btn" onclick="event.stopPropagation(); window.clearData()">✖ Clear</button>
+                        </div>
+                    </div>
+                </div>
+            </div> 
+
+            <div class="sidebar-footer">
+                <button class="btn btn-generate" onclick="window.generateTags()">🔘 Generate Live Preview</button>
+            </div>
+        </div>
+
+        <div class="preview-area">
+            
+            <div class="preview-toolbar">
+                <div class="preview-title">
+                    📄 Live Preview 
+                    <span id="summary-badge" class="badge" style="display:none;">📊 0 Tags</span>
+                </div>
+                
+                <div class="print-controls">
+                    <label>🖧 IP:</label>
+                    <input type="text" id="printerIp" placeholder="e.g. 192.168.1.100">
+                    <button class="btn btn-network" onclick="window.printViaNetwork()">Network Print</button>
+                    
+                    <div class="divider"></div>
+                    
+                    <button class="btn btn-usb" onclick="window.print()">🖨️ USB Print</button>
+                    <button class="btn btn-pdf" onclick="window.saveAsPDF()">💾 Save PDF</button>
+                </div>
+            </div>
+            
+            <div class="canvas-container">
+                <div id="print-container" class="size-micro">
+                    <div class="empty-state">
+                        <div style="font-size: 48px; margin-bottom: 5px;">📑</div>
+                        <b style="font-size: 16px; color:#64748b;">Workspace is Empty</b>
+                        <span style="font-size: 13px;">Upload Excel data and click "Generate" to visualize tags.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAiZl9YhGsfKIKTTK5hMqqhWoIiYbri9rI",
+            authDomain: "material-controler.firebaseapp.com",
+            projectId: "material-controler",
+            storageBucket: "material-controler.firebasestorage.app",
+            messagingSenderId: "782401252699",
+            appId: "1:782401252699:web:19d6775e92c428c224fe7e"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const firestoreDb = getFirestore(app);
+
+        let uploadedData = [];
+        let currentUser = null;
+
+        window.onload = async function() {
+            const today = new Date();
+            document.getElementById('tagDate').value = today.toISOString().split('T')[0];
+            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            document.getElementById('headerTitle').value = `STOCK COUNT ${months[today.getMonth()]} ${today.getFullYear()}`;
+            
+            // Fetch User Settings from Firebase
+            const userStr = localStorage.getItem('currentUser');
+            if(userStr) {
+                currentUser = JSON.parse(userStr);
+                try {
+                    const settingsRef = doc(firestoreDb, "user_settings", currentUser.username + "_tags");
+                    const snap = await getDoc(settingsRef);
+                    if(snap.exists()) {
+                        const s = snap.data();
+                        if(s.savedName) document.getElementById('empName').value = s.savedName;
+                        if(s.savedShift) document.getElementById('shift').value = s.savedShift;
+                        if(s.savedSize) document.getElementById('tagSize').value = s.savedSize;
+                        if(s.savedCode) document.getElementById('codeType').value = s.savedCode;
+                        if(s.savedIp) document.getElementById('printerIp').value = s.savedIp;
+                        if(s.savedCustomW) document.getElementById('customW').value = s.savedCustomW;
+                        if(s.savedCustomH) document.getElementById('customH').value = s.savedCustomH;
+                        if(s.savedPrintMode) {
+                            document.getElementById('printMode').value = s.savedPrintMode;
+                            window.changePrintMode();
+                        }
+                    }
+                } catch(e) { console.error("Error loading settings from Firebase", e); }
+            }
+            
+            window.toggleCustomSize(); 
+        }
+
+        window.saveSettingsToFirebase = async function() {
+            if(!currentUser) return;
+            try {
+                await setDoc(doc(firestoreDb, "user_settings", currentUser.username + "_tags"), {
+                    savedName: document.getElementById('empName').value,
+                    savedShift: document.getElementById('shift').value,
+                    savedSize: document.getElementById('tagSize').value,
+                    savedCode: document.getElementById('codeType').value,
+                    savedIp: document.getElementById('printerIp').value,
+                    savedCustomW: document.getElementById('customW').value,
+                    savedCustomH: document.getElementById('customH').value,
+                    savedPrintMode: document.getElementById('printMode').value,
+                    updatedAt: Date.now()
+                }, { merge: true });
+            } catch(e) { console.error("Error saving settings", e); }
+        }
+
+        window.toggleCustomSize = function() {
+            const size = document.getElementById('tagSize').value;
+            document.getElementById('customDimensions').style.display = size === 'custom' ? 'flex' : 'none';
+        }
+
+        window.changePrintMode = function() {
+            const mode = document.getElementById('printMode').value;
+            document.body.className = mode === 'roll' ? 'print-roll' : 'print-a4';
+            window.saveSettingsToFirebase();
+        }
+
+        window.downloadTemplate = function() {
+            const ws = XLSX.utils.aoa_to_sheet([["PART CODE", "LOCATION"], ["P-838139A", "M1R-126"], ["P-838140B", "M2R-110"]]);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Tags");
+            XLSX.writeFile(wb, "Inventory_Format.xlsx");
+        }
+
+        document.getElementById('excelFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
+                const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1});
+                
+                uploadedData = [];
+                for(let i = 1; i < json.length; i++) {
+                    if(json[i][0]) uploadedData.push({ partNo: String(json[i][0]).trim(), loc: json[i][1] ? String(json[i][1]).trim() : '-' });
+                }
+                
+                document.getElementById('file-details').style.display = 'flex';
+                document.getElementById('file-name').innerText = `✅ ${uploadedData.length} Items Loaded`;
+                document.getElementById('upload-text').style.display = 'none';
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        window.clearData = function() {
+            uploadedData = [];
+            document.getElementById('excelFile').value = '';
+            document.getElementById('upload-text').style.display = 'block';
+            document.getElementById('file-details').style.display = 'none';
+            document.getElementById('summary-badge').style.display = 'none';
+            document.getElementById('print-container').innerHTML = `
+                <div class="empty-state">
+                    <div style="font-size: 48px; margin-bottom: 5px;">📑</div>
+                    <b style="font-size: 16px; color:#64748b;">Workspace is Empty</b>
+                    <span style="font-size: 13px;">Data cleared. Upload a new file.</span>
+                </div>`;
+        }
+
+        window.saveAsPDF = function() {
+            if (uploadedData.length === 0) return alert("Generate Tags First!");
+            alert("💡 டிப்ஸ்: PDF சேவ் செய்ய, 'Printer' ஆப்ஷனில் 'Save as PDF' என்பதைத் தேர்ந்தெடுக்கவும்.");
+            window.print();
+        }
+
+        window.generateTags = function() {
+            if(uploadedData.length === 0) return alert("Please upload Excel first!");
+            
+            const header = document.getElementById('headerTitle').value;
+            const date = document.getElementById('tagDate').value.split('-').reverse().join('-');
+            const shift = document.getElementById('shift').value;
+            const name = document.getElementById('empName').value;
+            const size = document.getElementById('tagSize').value;
+            const codeType = document.getElementById('codeType').value;
+            const printContainer = document.getElementById('print-container');
+            
+            let cWidth = document.getElementById('customW').value;
+            let cHeight = document.getElementById('customH').value;
+
+            // Save preferences to Firebase
+            window.saveSettingsToFirebase();
+
+            printContainer.className = `size-${size}`;
+            printContainer.innerHTML = ''; 
+            
+            const badge = document.getElementById('summary-badge');
+            badge.style.display = 'inline-block';
+            badge.innerText = `📊 ${uploadedData.length} Tags`;
+
+            const shiftColors = { 'A': '#e0f2fe', 'B': '#f3e8ff', 'C': '#dcfce7', 'G': '#f1f5f9' };
+
+            let qrScale = 42, bcWidth = 1.0, bcHeight = 25;
+            
+            if (size === 'nano') { qrScale = 30; bcWidth = 0.8; bcHeight = 15; }
+            else if (size === 'micro') { qrScale = 42; bcWidth = 1.0; bcHeight = 25; }
+            else if (size === 'mini') { qrScale = 65; bcWidth = 1.3; bcHeight = 40; }
+            else if (size === 'standard') { qrScale = 85; bcWidth = 1.6; bcHeight = 55; }
+            else if (size === 'custom') { 
+                qrScale = Math.max(30, cHeight * 1.2); 
+                bcHeight = Math.max(15, cHeight - 10);
+                bcWidth = Math.max(0.8, cWidth / 45);
+            }
+
+            uploadedData.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'tag-wrapper';
+                
+                if(size === 'custom') {
+                    div.style.width = `${cWidth}mm`;
+                    div.style.height = `${cHeight}mm`;
+                }
+
+                const seq = `[${String(index + 1).padStart(3, '0')}/${uploadedData.length}]`;
+                
+                div.innerHTML = `
+                    <div class="tag-inner">
+                        <div class="tag-header" style="background: ${shiftColors[shift]}">
+                            ${header} <span class="tag-seq">${seq}</span>
+                        </div>
+                        <div class="tag-body">
+                            <div class="tag-details">
+                                <div class="row"><div class="lbl">PART CODE</div><div class="val">${item.partNo}</div></div>
+                                <div class="row"><div class="lbl">LOCATION</div><div class="val" style="color:#d32f2f">${item.loc}</div></div>
+                                <div class="row"><div class="lbl">QTY</div><div class="qty-write-box"></div></div>
+                                <div class="row"><div class="lbl">DATE/SHFT</div><div class="val">${date} / ${shift}</div></div>
+                                <div class="row"><div class="lbl">INSPECTOR</div><div class="val">${name.substring(0,15)}</div></div>
+                            </div>
+                            <div class="tag-qr-bar" id="code-${index}"></div>
+                        </div>
+                    </div>
+                `;
+                printContainer.appendChild(div);
+
+                const codeBox = document.getElementById(`code-${index}`);
+                
+                if (codeType === 'none') {
+                    codeBox.style.display = 'none';
+                } else if (codeType === 'qr') {
+                    const qrData = `P:${item.partNo}|L:${item.loc}|D:${date}|S:${shift}|I:${name}`;
+                    new QRCode(codeBox, { text: qrData, width: qrScale, height: qrScale, colorDark: "#000", correctLevel: QRCode.CorrectLevel.L });
+                } else {
+                    const canvas = document.createElement('canvas');
+                    canvas.className = 'barcode-svg';
+                    codeBox.appendChild(canvas);
+                    
+                    JsBarcode(canvas, `${item.partNo}-${item.loc}`, { 
+                        format: "CODE128", displayValue: false, height: bcHeight, width: bcWidth, margin: 0 
+                    });
+                }
+            });
+        }
+
+        window.printViaNetwork = function() {
+            let ipAddress = document.getElementById('printerIp').value;
+            let printContent = document.getElementById('print-container').innerHTML;
+
+            if (!ipAddress) {
+                alert("தயவுசெய்து நெட்வொர்க் ஐபி அட்ரஸை (IP Address) உள்ளிடவும்!");
+                return;
+            }
+            if (uploadedData.length === 0) {
+                alert("முதலில் எக்ஸெல் ஃபைலை அப்லோட் செய்து Generate பட்டனை அழுத்தவும்!");
+                return;
+            }
+
+            window.saveSettingsToFirebase();
+
+            fetch('http://localhost:5000/print', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ ip: ipAddress, html_data: printContent }) 
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    alert("கமாண்ட் பிரிண்டருக்கு வெற்றிகரமாக அனுப்பப்பட்டது!");
+                } else {
+                    alert("Error: " + data.message);
+                }
+            })
+            .catch((error) => {
+                alert("பைத்தான் சர்வர் ரன் ஆகிறதா என சரிபார்க்கவும்! Error: " + error);
+            });
+        }
+    </script>
+</body>
+</html>

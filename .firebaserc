@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "material-controler"
+  },
+  "targets": {
+    "material-controler": {
+      "hosting": {
+        "prod-site": [
+          "material-controler"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
