@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shift Work Timing Monitoring Report</title>
+    <style>
+        :root { 
+            --border-color: #94a3b8; 
+            --header-bg: #e2e8f0;
+            --readonly-bg: #f8fafc; 
+            --active-blue: #2563eb; 
+            --active-green-bg: #ecfdf5;
+            --hover-bg: #f1f5f9;
+            --text-main: #0f172a;
+        }
+        
+        body { 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+            background: #cbd5e1; 
+            padding: 15px; 
+            font-size: 13px; 
+            margin: 0; 
+            color: var(--text-main); 
+            /* திரையில் 80% ஜூம் அளவிலேயே தெரியும் */
+            zoom: 80%; 
+            transform-origin: 0 0; 
+        }
+
+        .container { background: white; max-width: 1450px; margin: auto; padding: 20px 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); border-radius: 12px; border-top: 6px solid var(--active-blue); }
+        
+        .header-container { position: relative; text-align: center; margin-bottom: 20px; display: flex; justify-content: center; align-items: center; }
+        h2 { text-transform: uppercase; margin: 0; font-size: 24px; letter-spacing: 1px; color: #0f172a; display: inline-flex; align-items: center; gap: 10px; font-weight: 900; text-shadow: 1px 1px 2px rgba(0,0,0,0.05); }
+        .import-btn-container { position: absolute; right: 0; }
+
+        .table-responsive { width: 100%; overflow-x: auto; border: 2px solid #0f172a; border-radius: 6px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); background: white; }
+        
+        table { width: 100%; border-collapse: collapse; text-align: center; margin-bottom: 0; table-layout: fixed; min-width: 1350px; }
+        th, td { border: 1px solid #64748b; padding: 0; position: relative; height: 34px; vertical-align: middle; transition: background-color 0.2s ease; }
+        
+        th { background: var(--header-bg); font-weight: 800; padding: 8px 2px; font-size: 12px; color: #0f172a; position: sticky; top: 0; z-index: 20; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #0f172a; }
+        .section-divider th { border-top: 3px solid #0f172a; border-bottom: 3px solid #0f172a; }
+        
+        .kitting-block-start td { border-top: 2px solid #475569; }
+
+        tbody tr:hover:not(.section-divider):not(.kitting-subheader) { background-color: var(--hover-bg); }
+
+        input, select, textarea { 
+            width: 100%; height: 100%; padding: 4px 6px; border: 2px solid transparent; outline: none; 
+            box-sizing: border-box; text-align: center; font-size: 14px; background: transparent; font-family: inherit; margin: 0; transition: all 0.2s ease-in-out; font-weight: 700; color: var(--text-main);
+        }
+        
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+
+        td:not(:has(input[readonly])):not(.tracker-col):not(.vertical-text):not(.bold-text) { background-color: #ffffff; }
+        td:focus-within { z-index: 10; background: #eff6ff !important; }
+        td:focus-within input:not([readonly]) { border-bottom: 2px solid var(--active-blue); }
+        
+        input[readonly] { background-color: var(--readonly-bg); font-weight: 800; color: #334155; cursor: default; }
+        
+        /* 🕒 SMART TIME INPUT STYLING */
+        .time-input { font-size: 15px; cursor: text; padding: 0; letter-spacing: 0.5px; width: 100%; text-align: center; font-weight: 900; color: #0f172a;}
+        .time-input::placeholder { font-weight: normal; color: #94a3b8; letter-spacing: 1px;}
+        
+        .vertical-text { writing-mode: vertical-rl; transform: rotate(180deg); font-weight: 900; white-space: nowrap; padding: 10px; letter-spacing: 2px; color: #0f172a; background: #f1f5f9; font-size: 14px;}
+        .bold-text { font-weight: 800; background-color: #f1f5f9; color: #0f172a; font-size: 14px;}
+
+        .col-1 { width: 4%; }  
+        .col-2 { width: 13%; text-align: left !important; } 
+        .col-2 input { text-align: left; padding-left: 10px; font-weight: 800; font-size: 15px;}
+        .col-3 { width: 4%; }  
+        .col-4 { width: 5.5%; }  
+        .col-5 { width: 5.5%; }  
+        .col-6 { width: 5.5%; }  
+        .col-7 { width: 5%; }  
+        .col-8 { width: 3.5%; } 
+        .col-9 { width: 7%; }  
+        .col-10, .col-11 { width: 8.5%; } 
+        .col-12 { width: 6%; }  
+        .col-total { width: 7%; } 
+        .col-13 { width: 17%; text-align: left !important; } 
+        .col-13 input { text-align: left; padding-left: 10px; }
+
+        .tracker-btn { 
+            background: #16a34a; color: white; border: none; height: 26px; width: 26px; font-size: 12px; cursor: pointer; 
+            transition: all 0.2s ease; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(22, 163, 74, 0.3);
+        }
+        .tracker-btn:hover { transform: translateY(-1px); background: #15803d; box-shadow: 0 4px 8px rgba(22, 163, 74, 0.4); }
+        .tracker-btn:active { transform: translateY(1px); box-shadow: 0 1px 2px rgba(22, 163, 74, 0.2); }
+        .tracker-btn.running { background: #ef4444; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3); animation: pulse-btn 1.5s infinite; }
+        
+        .active-job { background-color: var(--active-green-bg) !important; border-left: 4px solid #16a34a; }
+        @keyframes pulse-btn { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); } 70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+
+        select option[value=""] { color: #64748b; font-weight: normal; }
+
+        .footer-table { margin-top: 15px; border: 2px solid #0f172a; table-layout: auto; width: 100%; min-width: 1350px; background: white; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.03);}
+        .footer-table td, .footer-table th { border: 1px solid #475569; text-align: left; padding: 12px 15px; font-weight: 800; font-size: 14px; height: auto; color: #0f172a;}
+        .footer-table th { background: #e2e8f0; }
+        .footer-table input { width: 100%; text-align: left; background: white; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; height: 34px; transition: border 0.3s; font-size: 15px; font-weight: 700;}
+        .footer-table input:focus { border: 1px solid var(--active-blue); }
+        
+        .footer-table input[readonly] { border: none; background: transparent; text-align: center; font-weight: 900;}
+        #footer-shift-duration { color: var(--active-blue); font-size: 20px;}
+        #grand-rec-total { color: #0f172a; font-size: 20px;}
+        #total-model-count { color: #16a34a; font-size: 18px; text-shadow: 0px 1px 1px rgba(0,0,0,0.05);} 
+        
+        .duration { font-size: 15px !important; font-weight: 900 !important; color: #2563eb !important; }
+        .center-align { text-align: center !important; }
+
+        .btn-container { text-align: center; margin-top: 25px; gap: 15px; display: flex; justify-content: center; flex-wrap: wrap;}
+        .btn { padding: 8px 18px; border: none; font-size: 12px; cursor: pointer; border-radius: 4px; font-weight: 800; color: white; box-shadow: 0 2px 5px rgba(0,0,0,0.15); transition: all 0.2s ease; letter-spacing: 0.5px; text-transform: uppercase; display: inline-flex; align-items: center; justify-content: center; gap: 6px;}
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); filter: brightness(1.05);}
+        .btn:active { transform: scale(0.97); }
+        
+        .print-btn { background: var(--active-blue); } .clear-btn { background: #ef4444; } .save-btn { background: #10b981; } .import-btn { background: #8b5cf6; } 
+        .pdf-btn { background: #f59e0b; color: white; }
+
+        .save-status { display: block; margin-top: 10px; font-size: 14px; color: #10b981; font-weight: bold; height: 20px; letter-spacing: 0.5px;}
+
+        #excel-modal { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:white; padding:30px; box-shadow:0 30px 60px rgba(0,0,0,0.3); z-index:1000; border-radius:12px; width: 600px; border: 4px solid var(--active-blue); }
+        #excel-backdrop { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.7); z-index:999; backdrop-filter: blur(5px);}
+
+        @page { size: A4 portrait; margin: 8mm; }
+        @media print { 
+            .no-print { display: none !important; } 
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            body { zoom: 0.71 !important; background: white !important; margin: 0; padding: 0; font-size: 11px !important; transform: none;}
+            @-moz-document url-prefix() { body { transform: scale(0.71); transform-origin: 0 0; width: 140%; } }
+            
+            .container { padding: 0 !important; margin: 0 !important; border: none !important; box-shadow: none !important; width: 100%; max-width: 100%; } 
+            .table-responsive { overflow: visible !important; border: none !important; box-shadow: none !important; width: 100%; }
+            h2 { font-size: 24px; margin: 0 0 15px 0; text-shadow: none; text-align: center; color: #000 !important;}
+            
+            table { border-collapse: collapse; table-layout: fixed; width: 100% !important; min-width: 100% !important; border: 2px solid #000 !important;}
+            th { background: #e2e8f0 !important; padding: 6px 2px !important; font-size: 12px !important; position: static; box-shadow: none; border: 1px solid #000 !important;}
+            td { height: 34px !important; border: 1px solid #000 !important; padding: 0 !important; font-size: 13px !important; background: transparent !important;}
+            .kitting-block-start td { border-top: 2px solid #000 !important; }
+            .section-divider th { border-top: 3px solid #000 !important; border-bottom: 3px solid #000 !important;}
+
+            .tracker-col { display: none !important; width: 0 !important; }
+            .col-8 { width: 0% !important; display: none !important;} 
+            
+            .col-1 { width: 4% !important; }  .col-2 { width: 14% !important; } .col-3 { width: 4% !important; }  .col-4 { width: 6% !important; }  
+            .col-5 { width: 6% !important; }  .col-6 { width: 6% !important; }  .col-7 { width: 5% !important; }  .col-9 { width: 8% !important; }  
+            .col-10, .col-11 { width: 8% !important; } .col-12 { width: 6% !important; }  .col-total { width: 8% !important; } .col-13 { width: 17% !important; } 
+            
+            input, select { font-size: 13px !important; padding: 2px !important; text-align: center !important; font-weight: bold; border: none !important;}
+            .col-2 input, .col-13 input { text-align: left !important; padding-left: 5px !important; }
+            
+            .duration, #footer-shift-duration, #grand-rec-total { color: #2563eb !important; font-weight: 900 !important; }
+            #total-model-count { color: #16a34a !important; font-weight: 900 !important; }
+            
+            .active-job { border-left: none !important; }
+            .vertical-text { padding: 4px !important; font-size: 14px !important; letter-spacing: 2px; background: #e2e8f0 !important;}
+            .bold-text { background: #e2e8f0 !important; }
+            
+            .footer-table { margin-top: 15px !important; border: 2px solid #000 !important; background: transparent !important;}
+            .footer-table td, .footer-table th { padding: 8px 10px !important; font-size: 14px !important; height: 32px !important; border: 1px solid #000 !important;}
+            .footer-table th { background: #e2e8f0 !important; }
+            .footer-table input { height: 26px !important; font-size: 16px !important; border-bottom: 1px solid #000 !important; border-radius: 0; background: transparent !important;}
+            
+            .empty-val { color: transparent !important; background: transparent !important; border: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="excel-backdrop"></div>
+<div id="excel-modal">
+    <h3 style="margin-top:0; color:#0f172a; display: flex; align-items: center; gap: 10px; font-size: 22px;">📋 Paste Excel Data (Kitting)</h3>
+    <p style="font-size: 13px; color: #64748b; margin-top: -10px; margin-bottom: 15px; font-weight: bold;">Format: <span style="color:#2563eb">Model</span> ➡️ <span style="color:#2563eb">Qty</span> ➡️ <span style="color:#2563eb">Line Item</span> ➡️ <span style="color:#2563eb">Employee Name</span> ➡️ <span style="color:#2563eb">Start Time</span> ➡️ <span style="color:#2563eb">End Time</span></p>
+    <textarea id="excel-data" style="width:100%; height:140px; margin-bottom:15px; font-family:monospace; padding:12px; border:2px solid #cbd5e1; border-radius: 8px; outline:none; font-size: 14px;" placeholder="Paste your Excel data here..."></textarea>
+    <div style="display:flex; justify-content:space-between; align-items: center;">
+        <select id="target-kitting-block" style="width:45%; border:2px solid #cbd5e1; height: 42px; border-radius: 6px; font-weight: bold; font-size: 15px; color: #1e293b; outline:none; padding: 0 10px;">
+            <option value="0">1st Kitting Box</option>
+            <option value="1">2nd Kitting Box</option>
+            <option value="2">3rd Kitting Box</option>
+            <option value="3">4th Kitting Box</option>
+        </select>
+        <div style="display:flex; gap: 12px;">
+            <button class="btn clear-btn" onclick="closeExcelModal()">Cancel</button>
+            <button class="btn import-btn" onclick="processExcelPaste()">Import Data</button>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="header-container">
+        <h2>📊 SHIFT WORK TIMING MONITORING REPORT</h2>
+        <div class="import-btn-container no-print">
+            <button class="btn import-btn" onclick="openExcelModal()">📋 BULK IMPORT</button>
+        </div>
+    </div>
+
+    <table style="margin-bottom: 15px; table-layout: auto; width: 100%; border: 2px solid #0f172a; background: white; border-radius: 8px;">
+        <tr>
+            <th style="width: 15%; text-align: left; padding: 10px 15px; background: #e2e8f0; border:none; border-right: 1px solid #0f172a; border-bottom: 1px solid #0f172a; color: #0f172a;">👤 SHIFT INCHARGE</th>
+            <td style="width: 35%; border: none; border-right: 1px solid #0f172a; border-bottom: 1px solid #0f172a;">
+                <input type="text" id="header-incharge" placeholder="Enter Name" style="background: white; font-weight: 900; color: #2563eb; font-size: 16px;">
+            </td>
+            <th style="width: 15%; background: #e2e8f0; border:none; border-right: 1px solid #0f172a; border-bottom: 1px solid #0f172a; color: #0f172a;">🏭 SHIFT</th>
+            <td style="width: 35%; border: none; border-bottom: 1px solid #0f172a;">
+                <select id="header-shift" style="font-weight: 900; font-size: 16px; background: white; color: #2563eb;">
+                    <option value="" style="color:#64748b;">Select Shift</option>
+                    <option value="A">A</option><option value="B">B</option><option value="C">C</option>
+                </select>
+            </td>
+        </tr>
+        <tr>
+            <th style="text-align: left; padding: 10px 15px; background: #e2e8f0; border:none; border-right: 1px solid #0f172a; color: #0f172a;">🔢 BATCH</th>
+            <td style="border: none; border-right: 1px solid #0f172a;">
+                <input type="text" id="header-batch" placeholder="Enter Batch (e.g. A1, A2...)" style="font-weight: 900; font-size: 16px; color: #2563eb; background: white;">
+            </td>
+            <th style="background: #e2e8f0; border:none; border-right: 1px solid #0f172a; color: #0f172a;">📅 DATE</th>
+            <td style="border: none;">
+                <input type="date" id="header-date" style="font-weight: 900; font-size: 16px; color: #2563eb; background: white;">
+            </td>
+        </tr>
+    </table>
+
+    <div class="table-responsive">
+        <table id="main-tracker-table">
+            <colgroup>
+                <col class="col-1"> <col class="col-2"> <col class="col-3"> 
+                <col class="col-4"> <col class="col-5"> <col class="col-6"> <col class="col-7"> 
+                <col class="col-8 tracker-col"> <col class="col-9"> <col class="col-10"> <col class="col-11"> 
+                <col class="col-12"> <col class="col-total"> <col class="col-13">
+            </colgroup>
+            
+            <tr class="section-divider">
+                <th>📦 WORK TITLE</th>
+                <th>👤 EMPLOYEE NAME</th>
+                <th>⏱️ HOURS</th>
+                <th>0-2 HRS</th>
+                <th>2-4 HRS</th>
+                <th>4-6 HRS</th>
+                <th>6-8 HRS</th>
+                <th class="tracker-col no-print">⚡ ACT</th>
+                <th>Σ TOTAL TO</th>
+                <th>▶ START TIME</th>
+                <th>⏹ END TIME</th>
+                <th>⌛ HRS</th>
+                <th>∑ TOTAL HRS</th>
+                <th>📝 REMARKS</th>
+            </tr>
+            
+            <tr>
+                <td rowspan="4" class="vertical-text">RECEIVING</td>
+                <td rowspan="4" class="col-2"><input type="text" class="rec-emp"></td>
+                <td class="bold-text">M2R</td>
+                <td><input type="number" class="rec-qty"></td><td><input type="number" class="rec-qty"></td><td><input type="number" class="rec-qty"></td><td><input type="number" class="rec-qty"></td>
+                <td class="tracker-col no-print"><button class="tracker-btn" onclick="window.toggleTimer(this)" title="Start Timer">▶</button></td>
+                <td rowspan="4" style="vertical-align: middle; background: #f8fafc;">
+                    <input type="text" id="grand-total-to" readonly style="font-size: 22px; font-weight: 900; height: 100%; color: #0f172a; text-align: center; width: 100%;">
+                </td>
+                <td><input type="text" class="start-t rec-start time-input" placeholder="--:--"></td><td><input type="text" class="end-t rec-end time-input" placeholder="--:--"></td>
+                <td><input type="text" class="duration" readonly></td>
+                <td rowspan="4" style="background: #f8fafc; vertical-align: middle;">
+                    <input type="text" id="rec-block-total" readonly style="font-size: 18px; font-weight: 900; color: #0f172a; text-align: center; width: 100%;">
+                </td>
+                <td class="col-13"><input type="text"></td>
+            </tr>
+            <tr>
+                <td class="bold-text">M4R</td>
+                <td><input type="number" class="rec-qty"></td><td><input type="number" class="rec-qty"></td><td><input type="number" class="rec-qty"></td><td><input type="number" class="rec-qty"></td>
+                <td class="tracker-col no-print"><button class="tracker-btn" onclick="window.toggleTimer(this)" title="Start Timer">▶</button></td>
+                <td><input type="text" class="start-t rec-start time-input" placeholder="--:--"></td><td><input type="text" class="end-t rec-end time-input" placeholder="--:--"></td>
+                <td><input type="text" class="duration" readonly></td>
+                <td class="col-13"><input type="text"></td>
+            </tr>
+            <tr>
+                <td class="bold-text">VNA</td>
+                <td><input type="number" class="rec-qty"></td><td><input type="number" class="rec-qty"></td><td><input type="number" class="rec-qty"></td><td><input type="number" class="rec-qty"></td>
+                <td class="tracker-col no-print"><button class="tracker-btn" onclick="window.toggleTimer(this)" title="Start Timer">▶</button></td>
+                <td><input type="text" class="start-t rec-start time-input" placeholder="--:--"></td><td><input type="text" class="end-t rec-end time-input" placeholder="--:--"></td>
+                <td><input type="text" class="duration" readonly></td>
+                <td class="col-13"><input type="text"></td>
+            </tr>
+            <tr>
+                <td class="bold-text">HUB</td>
+                <td><input type="number" class="rec-qty"></td><td><input type="number" class="rec-qty"></td><td><input type="number" class="rec-qty"></td><td><input type="number" class="rec-qty"></td>
+                <td class="tracker-col no-print"><button class="tracker-btn" onclick="window.toggleTimer(this)" title="Start Timer">▶</button></td>
+                <td><input type="text" class="start-t rec-start time-input" placeholder="--:--"></td><td><input type="text" class="end-t rec-end time-input" placeholder="--:--"></td>
+                <td><input type="text" class="duration" readonly></td>
+                <td class="col-13"><input type="text"></td>
+            </tr>
+
+            <tbody id="kitting-blocks"></tbody>
+        </table>
+    </div> 
+
+    <div class="table-responsive" style="border:none; box-shadow: none; overflow: visible;">
+        <table class="footer-table">
+            <tr>
+                <td style="width: 15%; border-right: none;">▶ Kitting Start time:</td>
+                <td style="width: 15%; padding: 4px; border-left: none;"><input type="text" id="footer-kit-start" class="time-input" style="border:none; text-align:center; font-size: 18px;" placeholder="--:--"></td>
+                <td rowspan="2" class="center-align" style="width: 15%; background:#e2e8f0; border: 2px solid #0f172a;">∑ Total Kitting Hours<br><input type="text" id="footer-shift-duration" readonly style="background: transparent;"></td>
+                <td style="width: 15%; border-right: none;">📦 Receiving Total:</td>
+                <td style="width: 15%; padding: 0; border-left: none;"><input type="text" id="grand-rec-total" readonly></td>
+                <td rowspan="2" class="center-align" style="width: 10%; background:#e2e8f0;">📊 Total Working<br>Hours<br><input type="text" id="total-working-hours" readonly style="background:transparent; font-weight:900; color:#2563eb; text-align:center; font-size:18px; border:none; width:100%; margin-top:5px;"></td>
+                <td class="center-align" style="width: 15%;">✍️ Shift Incharge Sign</td>
+            </tr>
+            <tr>
+                <td style="border-right: none;">⏹ Kitting End time:</td>
+                <td style="padding: 4px; border-left: none;"><input type="text" id="footer-kit-end" class="time-input" style="border:none; text-align:center; font-size: 18px;" placeholder="--:--"></td>
+                
+                <td style="background: #e2e8f0; border-right: none;">🎯 Total Models:</td>
+                <td style="padding: 0; background: #e2e8f0; border-left: none;"><input type="text" id="total-model-count" readonly></td>
+                
+                <td style="height: 45px; background: white;"></td>
+            </tr>
+        </table>
+    </div>
+
+    <div style="text-align: center;"><span id="save-msg" class="save-status no-print"></span></div>
+
+    <div class="btn-container no-print">
+        <button class="btn clear-btn" onclick="window.clearForm()">🗑️ CLEAR DATA</button>
+        <button class="btn print-btn" onclick="window.print()">🖨️ PRINT</button>
+        <button class="btn pdf-btn" onclick="window.saveAsPDF()">📄 SAVE AS PDF</button>
+        <button class="btn save-btn" onclick="window.forceSave()">💾 SAVE CLOUD</button>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAiZl9YhGsfKIKTTK5hMqqhWoIiYbri9rI",
+        authDomain: "material-controler.firebaseapp.com",
+        projectId: "material-controler",
+        storageBucket: "material-controler.firebasestorage.app",
+        messagingSenderId: "782401252699",
+        appId: "1:782401252699:web:19d6775e92c428c224fe7e"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const firestoreDb = getFirestore(app);
+    let currentUnsubscribe = null;
+
+    // 🔥 SMART 12-HOUR TIME PARSER 🔥 
+    window.smartTimeParse = function(input) {
+        if (!input) return null;
+        let str = String(input).toLowerCase().replace(/\s+/g, '');
+        let ampm = '';
+        if (str.includes('p')) ampm = 'PM';
+        else if (str.includes('a')) ampm = 'AM';
+
+        let digits = str.replace(/\D/g, '');
+        if (digits.length === 0) return null;
+
+        let h = 0, m = 0;
+        if (digits.length <= 2) {
+            h = parseInt(digits, 10);
+            m = 0;
+        } else if (digits.length === 3) {
+            h = parseInt(digits.substring(0, 1), 10);
+            m = parseInt(digits.substring(1), 10);
+        } else {
+            h = parseInt(digits.substring(0, 2), 10);
+            m = parseInt(digits.substring(2, 4), 10);
+        }
+
+        if (!ampm) {
+            if (h >= 12 && h < 24) {
+                ampm = 'PM';
+                if (h > 12) h -= 12;
+            } else {
+                ampm = 'AM';
+                if (h === 0) h = 12; 
+            }
+        } else {
+            if (h === 0) h = 12;
+            if (h > 12) h = h % 12 || 12; 
+        }
+
+        if (m > 59) m = 59; 
+
+        let h24 = h;
+        if (ampm === 'PM' && h < 12) h24 += 12;
+        if (ampm === 'AM' && h === 12) h24 = 0;
+
+        return {
+            t12: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`,
+            t24: `${String(h24).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+        };
+    };
+
+    document.addEventListener('focusout', function(e) {
+        if (e.target.classList.contains('time-input')) {
+            let parsed = window.smartTimeParse(e.target.value);
+            if (parsed) {
+                e.target.value = parsed.t12;
+                e.target.dataset.val24 = parsed.t24;
+            } else {
+                e.target.value = '';
+                delete e.target.dataset.val24;
+            }
+            e.target.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    });
+
+    document.body.addEventListener('dblclick', function(e) {
+        if(e.target.classList.contains('time-input')) {
+            let now = new Date();
+            let h = now.getHours();
+            let m = String(now.getMinutes()).padStart(2, '0');
+            
+            let ampm = h >= 12 ? 'PM' : 'AM';
+            let h12 = h % 12 || 12;
+            
+            e.target.value = `${String(h12).padStart(2, '0')}:${m} ${ampm}`;
+            e.target.dataset.val24 = `${String(h).padStart(2, '0')}:${m}`;
+            
+            window.syncTimers();
+            window.calculateAllTotals();
+            e.target.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    });
+
+    window.saveAsPDF = function() {
+        let dateInput = document.getElementById('header-date').value || "Date";
+        
+        if (dateInput !== "Date" && dateInput.includes("-")) {
+            let parts = dateInput.split("-");
+            if (parts.length === 3) {
+                dateInput = `${parts[2]}-${parts[1]}-${parts[0]}`; 
+            }
+        }
+
+        const shiftInput = document.getElementById('header-shift').value || "Shift";
+        const inchargeInput = document.getElementById('header-incharge').value || "Incharge";
+        
+        const pdfFileName = `${dateInput}_Shift-${shiftInput}_${inchargeInput}`;
+        
+        const originalTitle = document.title;
+        document.title = pdfFileName;
+        
+        window.print();
+        
+        setTimeout(() => {
+            document.title = originalTitle;
+        }, 1000);
+    };
+
+    window.formatMin = function(el) {
+        let val = el.value.replace(/[^0-9]/g, '');
+        if (val) { el.value = val + ' MIN'; }
+    };
+    
+    window.cleanMin = function(el) {
+        el.value = el.value.replace(/[^0-9]/g, '');
+    };
+
+    document.addEventListener('keydown', function(e) {
+        const active = document.activeElement;
+        if (!active || !['INPUT', 'SELECT'].includes(active.tagName)) return;
+
+        if (active.type === 'number' && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+            e.preventDefault();
+        }
+
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'Enter') {
+            e.preventDefault();
+            const table = active.closest('table');
+            if(!table) return;
+            
+            const tr = active.closest('tr');
+            const allRows = Array.from(table.querySelectorAll('tr'));
+            let rIdx = allRows.indexOf(tr);
+            
+            const rect = active.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            
+            let step = (e.key === 'ArrowDown' || e.key === 'Enter') ? 1 : -1;
+            let curr = rIdx + step;
+            
+            while(curr >= 0 && curr < allRows.length) {
+                const nextRow = allRows[curr];
+                const inputs = Array.from(nextRow.querySelectorAll('input:not([readonly]), select'));
+                
+                let found = false;
+                for(let inp of inputs) {
+                    const iRect = inp.getBoundingClientRect();
+                    if(centerX >= iRect.left && centerX <= iRect.right) {
+                        inp.focus();
+                        if(inp.tagName === 'INPUT' && (inp.type === 'text' || inp.type === 'number')) {
+                            inp.select();
+                        }
+                        found = true; break;
+                    }
+                }
+                if(found) break;
+                curr += step;
+            }
+        }
+    });
+
+    window.updateRowVisibility = function() {
+        document.querySelectorAll('#kitting-blocks tr.kitting-row').forEach(row => {
+            const modelInput = row.querySelector('.kit-model');
+            if (!modelInput) return;
+            
+            const qtyInput = row.querySelector('.kit-qty');
+            const lineInput = row.querySelector('.kit-line');
+            
+            const hasData = modelInput.value.trim() !== '' || 
+                            (qtyInput && qtyInput.value.trim() !== '') || 
+                            (lineInput && lineInput.value.trim() !== '');
+
+            const elementsToToggle = row.querySelectorAll('.tracker-btn, .cover-remove-time, .start-t, .end-t, .duration');
+            
+            elementsToToggle.forEach(el => {
+                if (el) el.style.visibility = hasData ? 'visible' : 'hidden';
+            });
+        });
+
+        document.querySelectorAll('input').forEach(inp => {
+            if (inp.value === '') {
+                inp.classList.add('empty-val');
+            } else {
+                inp.classList.remove('empty-val');
+            }
+        });
+    };
+
+    window.addKittingRow = function(blockIndex, slNo) {
+        const groupRows = document.querySelectorAll('.kitting-group-' + blockIndex);
+        const lastRow = groupRows[groupRows.length - 1];
+        
+        const startRow = document.getElementById('group-start-' + blockIndex);
+        const rowSpans = startRow.querySelectorAll('td[rowspan]');
+        rowSpans.forEach(td => {
+            td.setAttribute('rowspan', parseInt(td.getAttribute('rowspan')) + 1);
+        });
+        
+        const newRow = document.createElement('tr');
+        newRow.className = 'kitting-row kitting-group-' + blockIndex;
+        newRow.innerHTML = `
+            <td class="bold-text">${slNo}</td>
+            <td colspan="2"><input type="text" class="kit-model"></td>
+            <td><input type="number" class="kit-qty"></td>
+            <td><input type="text" class="kit-line"></td>
+            <td class="tracker-col no-print"><button class="tracker-btn" onclick="window.toggleTimer(this)" title="Start Timer">▶</button></td>
+            <td><input type="number" class="cover-remove-time" placeholder="Mins"></td>
+            <td><input type="text" class="start-t kit-start time-input" placeholder="--:--" data-block="${blockIndex}"></td>
+            <td><input type="text" class="end-t kit-end time-input" placeholder="--:--" data-block="${blockIndex}"></td>
+            <td><input type="text" class="duration" readonly></td>
+            <td class="col-13"><input type="text"></td>
+        `;
+        lastRow.parentNode.insertBefore(newRow, lastRow.nextSibling);
+        window.updateRowVisibility();
+    };
+
+    window.buildKittingTable = function() {
+        const kittingContainer = document.getElementById('kitting-blocks');
+        const blockTitles = ["2BIN KITTING", "2BIN KITTING", "2BIN KITTING", "2BIN KITTING"];
+        
+        let html = '';
+        blockTitles.forEach((title, index) => {
+            if(index === 0) {
+                html += `
+                <tr class="section-divider kitting-subheader" style="background-color: #e2e8f0;">
+                    <th>📦 WORK TITLE</th>
+                    <th>👤 EMPLOYEE NAME</th>
+                    <th># SL.NO</th>
+                    <th colspan="2">🏷️ MODEL</th>
+                    <th>🎯 PICKING QTY</th>
+                    <th>🔢 LINE ITEM</th>
+                    <th class="tracker-col no-print">⚡ ACT</th>
+                    <th>🛡️ COVER REMOVE TIME</th>
+                    <th>▶ START TIME</th>
+                    <th>⏹ END TIME</th>
+                    <th>⌛ HRS</th>
+                    <th>∑ TOTAL HRS</th>
+                    <th>📝 REMARKS</th>
+                </tr>`;
+            }
+
+            for(let i=1; i<=5; i++) {
+                const rowId = i===1 ? `id="group-start-${index}"` : '';
+                const rowClass = `kitting-row kitting-group-${index} ${i===1 ? 'kitting-block-start' : ''}`;
+                
+                html += `<tr class="${rowClass}" ${rowId}>`;
+                if(i === 1) {
+                    html += `<td rowspan="5" class="vertical-text">${title}</td>`;
+                    html += `<td rowspan="5" class="col-2"><input type="text" class="kit-emp"></td>`;
+                }
+                
+                html += `
+                    <td class="bold-text">${i}</td>
+                    <td colspan="2"><input type="text" class="kit-model"></td>
+                    <td><input type="number" class="kit-qty"></td>
+                    <td><input type="text" class="kit-line"></td>
+                    <td class="tracker-col no-print"><button class="tracker-btn" onclick="window.toggleTimer(this)" title="Start Timer">▶</button></td>
+                    <td><input type="number" class="cover-remove-time" placeholder="Mins"></td>
+                    <td><input type="text" class="start-t kit-start time-input" placeholder="--:--" data-block="${index}"></td>
+                    <td><input type="text" class="end-t kit-end time-input" placeholder="--:--" data-block="${index}"></td>
+                    <td><input type="text" class="duration" readonly></td>`;
+                
+                if (i === 1) {
+                    html += `<td rowspan="5" style="background:#f8fafc; vertical-align: middle;">
+                        <input type="text" class="block-duration block-duration-${index}" readonly style="font-weight:900; font-size:18px; color:#0f172a; text-align:center; width: 100%;">
+                    </td>`;
+                }
+                
+                html += `<td class="col-13"><input type="text"></td>
+                </tr>`;
+            }
+        });
+        kittingContainer.innerHTML = html;
+        window.updateRowVisibility();
+    }
+    window.buildKittingTable();
+
+    window.calculateAllTotals = function() {
+        function timeToMins24(str) {
+            if(!str) return 0;
+            let parts = str.split(':');
+            return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+        }
+        function calcDiff(s24, e24) {
+            try {
+                if(!s24 || !e24) return 0;
+                let m1 = timeToMins24(s24);
+                let m2 = timeToMins24(e24);
+                let diff = m2 - m1;
+                if (diff < 0) diff += 24 * 60; 
+                return diff;
+            } catch(e) { return 0; }
+        }
+        function fmtTime(totalMins) {
+            if (!totalMins || totalMins <= 0 || isNaN(totalMins)) return "";
+            const hrs = Math.floor(totalMins / 60); 
+            const mins = totalMins % 60;
+            return (hrs > 0 ? hrs + "h " : "") + (mins > 0 ? mins + "m" : (hrs > 0 ? "0m" : ""));
+        }
+
+        try {
+            let totalWorkingMins = 0; 
+            let recTotalMins = 0;
+
+            const recStarts = document.querySelectorAll('.rec-start');
+            const recEnds = document.querySelectorAll('.rec-end');
+            recStarts.forEach((startInp, i) => {
+                if(startInp && recEnds[i]) {
+                    let sVal = startInp.dataset.val24 || (window.smartTimeParse(startInp.value) || {}).t24;
+                    let eVal = recEnds[i].dataset.val24 || (window.smartTimeParse(recEnds[i].value) || {}).t24;
+                    
+                    let rowMins = calcDiff(sVal, eVal);
+                    const rowDur = startInp.closest('tr').querySelector('.duration');
+                    const isRunning = startInp.closest('tr').dataset.timerId !== undefined;
+                    if (rowDur && !isRunning) rowDur.value = fmtTime(rowMins);
+                    recTotalMins += rowMins;
+                }
+            });
+            const recBlockTotal = document.getElementById('rec-block-total');
+            if (recBlockTotal) recBlockTotal.value = fmtTime(recTotalMins);
+            totalWorkingMins += recTotalMins; 
+
+            let minStartMins = Infinity;
+            let maxEndMins = -1;
+            let kittingTotalMins = 0; 
+
+            for(let i = 0; i < 4; i++) {
+                let blockMins = 0;
+                const kitStarts = document.querySelectorAll(`.kit-start[data-block="${i}"]`);
+                const kitEnds = document.querySelectorAll(`.kit-end[data-block="${i}"]`);
+                
+                kitStarts.forEach((startInp, j) => {
+                    const endInp = kitEnds[j];
+                    const row = startInp.closest('tr');
+                    let rowMins = 0;
+                    
+                    let sVal = startInp.dataset.val24 || (window.smartTimeParse(startInp.value) || {}).t24;
+                    let eVal = endInp ? (endInp.dataset.val24 || (window.smartTimeParse(endInp.value) || {}).t24) : "";
+
+                    if(sVal) {
+                        let sMins = timeToMins24(sVal);
+                        if(sMins < minStartMins) minStartMins = sMins;
+                    }
+                    if(eVal) {
+                        let eMins = timeToMins24(eVal);
+                        if(eMins > maxEndMins) maxEndMins = eMins;
+                    }
+
+                    if(sVal && eVal) {
+                        rowMins = calcDiff(sVal, eVal);
+                        const rowDur = row.querySelector('.duration');
+                        const isRunning = row.dataset.timerId !== undefined;
+                        if (rowDur && !isRunning) rowDur.value = fmtTime(rowMins);
+                    }
+                    
+                    let coverMins = 0;
+                    const coverInput = row.querySelector('.cover-remove-time');
+                    if(coverInput && coverInput.value) {
+                        coverMins = parseInt(coverInput.value) || 0;
+                    }
+
+                    blockMins += (rowMins + coverMins);
+                });
+                
+                const blockDuration = document.querySelector(`.block-duration-${i}`);
+                if (blockDuration) {
+                    blockDuration.value = fmtTime(blockMins);
+                }
+                kittingTotalMins += blockMins;
+                totalWorkingMins += blockMins; 
+            }
+
+            const totalWorkHoursEl = document.getElementById('total-working-hours');
+            if (totalWorkHoursEl) {
+                totalWorkHoursEl.value = fmtTime(totalWorkingMins);
+            }
+
+            const footerKitStart = document.getElementById('footer-kit-start');
+            const footerKitEnd = document.getElementById('footer-kit-end');
+            
+            function minsToTimeStr(m) {
+                if(m < 0 || isNaN(m)) return "";
+                let h = Math.floor(m / 60) % 24;
+                let min = m % 60;
+                let ampm = h >= 12 ? 'PM' : 'AM';
+                let h12 = h % 12 || 12;
+                return String(h12).padStart(2, '0') + ':' + String(min).padStart(2, '0') + ' ' + ampm;
+            }
+            function minsToTime24(m) {
+                if(m < 0 || isNaN(m)) return "";
+                let h = Math.floor(m / 60) % 24;
+                let min = m % 60;
+                return String(h).padStart(2, '0') + ':' + String(min).padStart(2, '0');
+            }
+
+            if(minStartMins !== Infinity && document.activeElement !== footerKitStart) {
+                footerKitStart.value = minsToTimeStr(minStartMins);
+                footerKitStart.dataset.val24 = minsToTime24(minStartMins);
+            }
+            if(maxEndMins !== -1 && document.activeElement !== footerKitEnd) {
+                footerKitEnd.value = minsToTimeStr(maxEndMins);
+                footerKitEnd.dataset.val24 = minsToTime24(maxEndMins);
+            }
+
+            const footerShift = document.getElementById('footer-shift-duration');
+            if (footerShift) {
+                footerShift.value = fmtTime(kittingTotalMins);
+            }
+
+            let totalTO = 0;
+            document.querySelectorAll('.rec-qty').forEach(inp => totalTO += parseFloat(inp.value) || 0);
+            
+            const grandTO = document.getElementById('grand-total-to');
+            if (grandTO) grandTO.value = totalTO || "";
+            
+            const grandRecTotal = document.getElementById('grand-rec-total');
+            if (grandRecTotal) grandRecTotal.value = totalTO || ""; 
+            
+            let modelCount = 0;
+            document.querySelectorAll('.kit-model').forEach(inp => {
+                if(inp.value.trim() !== '') {
+                    modelCount++;
+                }
+            });
+            const totalModelEl = document.getElementById('total-model-count');
+            if(totalModelEl) {
+                totalModelEl.value = modelCount > 0 ? `${modelCount} Models` : "";
+            }
+            
+        } catch(e) { console.error("Calculation Error:", e); }
+    };
+
+    window.openExcelModal = function() {
+        document.getElementById('excel-backdrop').style.display = 'block';
+        document.getElementById('excel-modal').style.display = 'block';
+    };
+    window.closeExcelModal = function() {
+        document.getElementById('excel-backdrop').style.display = 'none';
+        document.getElementById('excel-modal').style.display = 'none';
+        document.getElementById('excel-data').value = '';
+    };
+
+    window.processExcelPaste = function() {
+        const data = document.getElementById('excel-data').value;
+        const blockIndex = parseInt(document.getElementById('target-kitting-block').value);
+        const rows = data.split('\n').filter(r => r.trim() !== '');
+        
+        let currentRowsCount = document.querySelectorAll('.kitting-group-' + blockIndex).length;
+        while (currentRowsCount < rows.length) {
+            window.addKittingRow(blockIndex, currentRowsCount + 1);
+            currentRowsCount++;
+        }
+        
+        const groupRows = document.querySelectorAll('.kitting-group-' + blockIndex);
+        
+        for(let i=0; i<rows.length; i++) {
+            let currentRow = groupRows[i];
+            if(!currentRow) break;
+            
+            const cols = rows[i].split('\t');
+            
+            const modelInput = currentRow.querySelector('.kit-model');
+            const qtyInput = currentRow.querySelector('.kit-qty');
+            const lineInput = currentRow.querySelector('.kit-line');
+            const startInput = currentRow.querySelector('.start-t');
+            const endInput = currentRow.querySelector('.end-t');
+            
+            if (cols[0] !== undefined && modelInput) modelInput.value = cols[0].trim();
+            if (cols[1] !== undefined && qtyInput) qtyInput.value = cols[1].trim();
+            if (cols[2] !== undefined && lineInput) lineInput.value = cols[2].trim();
+            
+            if (i === 0 && cols[3] !== undefined) {
+                const empName = cols[3].trim();
+                const nameInput = document.getElementById('group-start-' + blockIndex).querySelector('.kit-emp');
+                if (nameInput && empName) nameInput.value = empName;
+            }
+
+            if (cols[4] !== undefined && startInput) {
+                let parsed = window.smartTimeParse(cols[4]);
+                if(parsed) {
+                    startInput.value = parsed.t12;
+                    startInput.dataset.val24 = parsed.t24;
+                }
+            }
+            if (cols[5] !== undefined && endInput) {
+                let parsed = window.smartTimeParse(cols[5]);
+                if(parsed) {
+                    endInput.value = parsed.t12;
+                    endInput.dataset.val24 = parsed.t24;
+                }
+            }
+        }
+        
+        closeExcelModal();
+        window.updateRowVisibility(); 
+        window.calculateAllTotals();
+        document.dispatchEvent(new Event('input', { bubbles: true })); 
+    };
+
+    function getDocId() {
+        const dateInput = document.getElementById('header-date').value;
+        if(dateInput) {
+            const parts = dateInput.split('-');
+            if(parts.length === 3) {
+                return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+        }
+        const now = new Date();
+        return `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
+    }
+
+    window.syncTimers = function() {
+        document.querySelectorAll('.tracker-btn').forEach(btn => {
+            const row = btn.closest('tr');
+            const startInput = row.querySelector('.start-t');
+            const endInput = row.querySelector('.end-t');
+            const durationInput = row.querySelector('.duration');
+
+            const hasStart = startInput && startInput.value.trim() !== '';
+            const hasEnd = endInput && endInput.value.trim() !== '';
+            const isRunning = row.dataset.timerId !== undefined;
+
+            if (hasStart && !hasEnd) {
+                if (!isRunning) {
+                    btn.innerHTML = '⏹';
+                    btn.title = 'Stop Timer';
+                    btn.classList.add('running');
+                    row.classList.add('active-job'); 
+                    if (durationInput) durationInput.style.color = '#dc2626';
+
+                    const timerId = setInterval(() => {
+                        let startVal = startInput.dataset.val24 || (window.smartTimeParse(startInput.value) || {}).t24;
+                        if(!startVal) return;
+                        
+                        let currentNow = new Date();
+                        let sParts = startVal.split(':');
+                        let startTimeObj = new Date();
+                        startTimeObj.setHours(parseInt(sParts[0]), parseInt(sParts[1]), 0, 0);
+                        
+                        let diffSecs = Math.floor((currentNow - startTimeObj) / 1000);
+                        if (diffSecs < 0) diffSecs += 24 * 3600; 
+
+                        let h = Math.floor(diffSecs / 3600);
+                        let m = Math.floor((diffSecs % 3600) / 60);
+                        let s = diffSecs % 60;
+                        
+                        if (durationInput) durationInput.value = `⏳ ${h > 0 ? h + 'h ' : ''}${m}m ${s}s`;
+                    }, 1000);
+                    row.dataset.timerId = timerId;
+                }
+            } else {
+                if (isRunning) {
+                    clearInterval(parseInt(row.dataset.timerId));
+                    delete row.dataset.timerId;
+                }
+                btn.innerHTML = '▶';
+                btn.title = 'Start Timer';
+                btn.classList.remove('running');
+                row.classList.remove('active-job'); 
+                if (durationInput) durationInput.style.color = ''; 
+            }
+        });
+    };
+
+    window.toggleTimer = function(btn) {
+        const row = btn.closest('tr');
+        const startInput = row.querySelector('.start-t');
+        const endInput = row.querySelector('.end-t');
+        
+        let now = new Date();
+        let h = now.getHours();
+        let m = String(now.getMinutes()).padStart(2, '0');
+        
+        let ampm = h >= 12 ? 'PM' : 'AM';
+        let h12 = h % 12 || 12;
+        let time12 = `${String(h12).padStart(2, '0')}:${m} ${ampm}`;
+        let time24 = `${String(h).padStart(2, '0')}:${m}`;
+
+        if (!btn.classList.contains('running')) {
+            if (!startInput.value) {
+                startInput.value = time12;
+                startInput.dataset.val24 = time24;
+            }
+            endInput.value = ""; 
+            delete endInput.dataset.val24;
+        } else {
+            endInput.value = time12;
+            endInput.dataset.val24 = time24;
+        }
+        
+        window.syncTimers(); 
+        window.calculateAllTotals();
+        startInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    let saveTimeout;
+    ['input', 'change'].forEach(evt => {
+        document.addEventListener(evt, function (e) {
+            window.updateRowVisibility(); 
+            window.syncTimers(); 
+            window.calculateAllTotals(); 
+
+            const docId = getDocId();
+            const inputs = Array.from(document.querySelectorAll('input:not([type="date"]), select'));
+            
+            const data = inputs.map(inp => ({
+                val: inp.value,
+                val24: inp.dataset.val24 || ""
+            }));
+            
+            const rowCounts = [0, 1, 2, 3].map(i => document.querySelectorAll('.kitting-group-' + i).length);
+            const saveDataObj = { formData: data, rowCounts: rowCounts };
+            localStorage.setItem('SmartShiftMemory_' + docId, JSON.stringify(saveDataObj));
+
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(window.saveMemoryToFirebase, 1500); 
+        });
+    });
+
+    window.forceSave = function() {
+        document.getElementById('save-msg').innerText = "Forcing Save... ⏳";
+        window.saveMemoryToFirebase();
+    }
+
+    window.saveMemoryToFirebase = async function() {
+        const docId = getDocId();
+        const inputs = Array.from(document.querySelectorAll('input:not([type="date"]), select'));
+        const data = inputs.map(inp => ({
+            val: inp.value,
+            val24: inp.dataset.val24 || ""
+        }));
+        
+        const rowCounts = [0, 1, 2, 3].map(i => document.querySelectorAll('.kitting-group-' + i).length);
+        const msg = document.getElementById('save-msg');
+        msg.innerText = "Syncing with Cloud... ⏳";
+        
+        try {
+            await setDoc(doc(firestoreDb, "work_time_logs", docId), {
+                date: document.getElementById('header-date').value || new Date().toISOString().split('T')[0],
+                shift: document.getElementById('header-shift').value,
+                incharge: document.getElementById('header-incharge').value,
+                formData: data,
+                rowCounts: rowCounts,
+                lastUpdated: Date.now()
+            });
+            msg.innerText = "💾 All Data Saved to Cloud!";
+        } catch(e) {
+            msg.innerText = "⚠️ Cloud sync failed. Saved locally.";
+            msg.style.color = "#ef4444";
+        }
+        
+        setTimeout(() => { 
+            msg.innerText = ""; 
+            msg.style.color = "#10b981";
+        }, 3000);
+    }
+
+    window.loadData = function() {
+        const docId = getDocId();
+        if (currentUnsubscribe) currentUnsubscribe(); 
+        const docRef = doc(firestoreDb, "work_time_logs", docId);
+        
+        currentUnsubscribe = onSnapshot(docRef, (docSnap) => {
+            if(docSnap.exists()) {
+                restoreRowsAndData(docSnap.data());
+            } else {
+                const savedDataStr = localStorage.getItem('SmartShiftMemory_' + docId);
+                if(savedDataStr) {
+                    try {
+                        const parsedData = JSON.parse(savedDataStr);
+                        restoreRowsAndData(parsedData);
+                    } catch(e) {}
+                } else {
+                    window.buildKittingTable(); 
+                    clearInputsOnly();
+                }
+            }
+
+            document.querySelectorAll('.time-input').forEach(inp => {
+                if(inp.value && !inp.value.includes('M')) { 
+                    let parts = inp.value.split(':');
+                    if(parts.length >= 2) {
+                        inp.dataset.val24 = inp.value;
+                        let h = parseInt(parts[0], 10);
+                        let m = parts[1];
+                        let ampm = h >= 12 ? 'PM' : 'AM';
+                        let h12 = h % 12 || 12;
+                        inp.value = `${String(h12).padStart(2, '0')}:${m} ${ampm}`;
+                    }
+                }
+            });
+
+            window.updateRowVisibility(); 
+            window.syncTimers();
+            window.calculateAllTotals(); 
+        });
+    }
+
+    function restoreRowsAndData(dataObj) {
+        if(dataObj && dataObj.rowCounts) {
+            dataObj.rowCounts.forEach((count, i) => {
+                let currentRows = document.querySelectorAll('.kitting-group-' + i).length;
+                while (currentRows < count) {
+                    window.addKittingRow(i, currentRows + 1);
+                    currentRows++;
+                }
+            });
+        }
+        populateInputs(dataObj.formData ? dataObj.formData : dataObj);
+    }
+
+    function populateInputs(data) {
+        if (!data || !data.length) return;
+        const inputs = Array.from(document.querySelectorAll('input:not([type="date"]), select'));
+        inputs.forEach((inp, idx) => {
+            if(data[idx] !== undefined && document.activeElement !== inp) {
+                if (typeof data[idx] === 'object') {
+                    inp.value = data[idx].val;
+                    if(data[idx].val24) inp.dataset.val24 = data[idx].val24;
+                } else {
+                    inp.value = data[idx];
+                }
+            }
+        });
+        window.updateRowVisibility(); 
+        window.syncTimers();
+        window.calculateAllTotals();
+    }
+
+    function clearInputsOnly() {
+        document.querySelectorAll('input:not([type="date"]), select').forEach(input => {
+            input.value = ''; input.style.color = '';
+            if(input.dataset.val24) delete input.dataset.val24;
+        });
+        document.getElementById('header-date').value = new Date().toISOString().split('T')[0];
+        window.updateRowVisibility(); 
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        if(!document.getElementById('header-date').value) {
+            document.getElementById('header-date').value = new Date().toISOString().split('T')[0];
+        }
+        window.loadData();
+    });
+
+    document.getElementById('header-date').addEventListener('change', window.loadData);
+
+    window.clearForm = function() {
+        if(confirm("Are you sure you want to completely clear the form? This will delete the auto-saved memory.")) {
+            document.querySelectorAll('tr[data-timer-id]').forEach(row => {
+                clearInterval(parseInt(row.dataset.timerId));
+                delete row.dataset.timerId;
+            });
+            window.buildKittingTable();
+            clearInputsOnly();
+            window.syncTimers(); 
+            window.calculateAllTotals();
+            
+            const docId = getDocId();
+            deleteDoc(doc(firestoreDb, "work_time_logs", docId)).then(() => {
+                localStorage.removeItem('SmartShiftMemory_' + docId);
+                document.getElementById('save-msg').innerText = "🗑️ Memory Cleared from Cloud!";
+            });
+        }
+    }
+</script>
+</body>
+</html>

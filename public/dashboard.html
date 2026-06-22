@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>MC Dashboard</title>
-  <link rel="icon" type="image/png" href="MC.PNG">
+  <link rel="icon" type="image/png" href="MC.jpg">
   
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -224,15 +224,16 @@
     </div>
 
     <div class="sidebar-menu">
-      <button id="homeBtn" onclick="window.showWelcome()">🏠 Home</button>
-      <button id="awardBtn" onclick="window.loadPage('Award.html')">🎖️ Award Data</button>
-      <button id="batteryBtn" onclick="window.loadPage('Battery.html')">⚡️ Battery Tracking</button>
-      <button id="gasketBtn" onclick="window.loadPage('pacover.html')">📦 PA Cover Gasket</button>
+      <button id="homeBtn" onclick="window.showWelcome()">🤖 System Status</button>
+      <button id="workTimeReportBtn" onclick="window.loadPage('Work Time Monitoring Report.html')">⏲ Work Time Report</button>
+      <button id="moveReportBtn" onclick="window.loadPage('Material Movement Report.html')">🖥️ Movement Report</button>
+      <button id="batteryBtn" onclick="window.loadPage('HUB Trolley Flow Tracker.html')">🛒 HUB Trolley Flow Tracker</button>
+      <button id="batteryBtn" onclick="window.loadPage('Battery.html')">🔋 AMR Battery Tracking</button>
+      <button id="gasketBtn" onclick="window.loadPage('pacover.html')">📈 PA Cover Gasket</button>
       <button id="trolleyBtn" onclick="window.loadPage('TrolleyMaint.html')">🛒 Trolley Maintenance</button>
-      <button id="mechBufferBtn" onclick="window.loadPage('Buffer location.html')">🏭 Mech Buffer Rack</button>
+      <button id="mechBufferBtn" onclick="window.loadPage('Buffer location.html')">📊 Mech Buffer Rack</button>
       <button id="invTagBtn" onclick="window.loadPage('Inventory Tag.html')">🏷️ Inventory Tag</button>
-      <button id="moveReportBtn" onclick="window.loadPage('Material Movement Report.html')">📝 Movement Report</button>
-      <button id="workTimeReportBtn" onclick="window.loadPage('Work Time Monitoring Report.html')">⏰ Work Time Report</button>
+      <button id="awardBtn" onclick="window.loadPage('Award.html')">🎖️ Award Data</button>
       <button id="profileBtn" onclick="window.showProfile()">👨🏻‍💼 Profile</button>
       <div id="customSidebarArea"></div>
       <div id="adminArea" style="display:none; border-top:1px solid rgba(255,255,255,0.2); margin-top:10px; padding-top:10px;">

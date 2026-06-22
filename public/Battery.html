@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PowerTrack Pro V | Battery Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --bg-gradient: #f0f4f8; 
+            --header-bg: rgba(255, 255, 255, 0.85);
+            --glass-bg: rgba(255, 255, 255, 0.85);
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-sub: #64748b;
+            --border-color: rgba(255, 255, 255, 0.8);
+            --input-bg: #f8fafc;
+            --input-border: #e2e8f0;
+            --table-head-bg: #f8fafc;
+            --table-border: #f1f5f9;
+            --shadow-color: rgba(31, 38, 135, 0.05); 
+
+            --primary: #4338ca;
+            --primary-light: #6366f1;
+            --accent: #06b6d4;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        [data-theme="dark"] {
+            --bg-gradient: linear-gradient(135deg, #111827 0%, #1e293b 100%);
+            --header-bg: rgba(17, 24, 39, 0.85);
+            --glass-bg: rgba(30, 41, 59, 0.85);
+            --card-bg: #1e293b;
+            --text-main: #f1f5f9;
+            --text-sub: #94a3b8;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --input-bg: #0f172a;
+            --input-border: #334155;
+            --table-head-bg: #0f172a;
+            --table-border: #334155;
+            --shadow-color: rgba(0, 0, 0, 0.4);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif; margin: 0; padding: 0;
+            font-size: 0.85rem; 
+            color: var(--text-main); 
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            min-height: 100vh; transition: background 0.5s ease, color 0.3s ease;
+        }
+
+        header {
+            background: var(--header-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            padding: 0 1.2rem; display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100;
+            box-shadow: 0 2px 10px var(--shadow-color); border-bottom: 1px solid var(--border-color);
+            height: 45px; 
+        }
+
+        .brand {
+            position: absolute; left: 12%; transform: translateX(-50%);
+            font-size: 1rem; font-weight: 700; 
+            background: -webkit-linear-gradient(45deg, var(--primary-light), var(--accent));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            display: flex; align-items: center; gap: 8px; white-space: nowrap;
+        }
+
+        .header-controls { display: flex; gap: 8px; align-items: center; margin-left: auto; }
+
+        .theme-btn {
+            background: var(--input-bg); color: var(--text-main);
+            border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 50px; cursor: pointer;
+            font-size: 0.75rem; transition: 0.3s;
+        }
+        .theme-btn:hover { background: var(--primary); color: white; border-color: var(--primary); transform: scale(1.05); }
+
+        .date-badge {
+            background: var(--glass-bg); backdrop-filter: blur(8px);
+            padding: 2px 8px; border-radius: 30px;
+            font-size: 0.7rem; font-weight: 600; color: var(--primary-light);
+            box-shadow: 0 2px 8px var(--shadow-color); border: 1px solid var(--border-color);
+        }
+
+        .mini-stat-card {
+            background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color); padding: 0.8rem 1rem; border-radius: 10px;
+            box-shadow: 0 2px 8px 0 var(--shadow-color); display: flex; align-items: center; justify-content: space-between;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); flex: 1; min-width: 130px;
+        }
+        .mini-stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px 0 var(--shadow-color); }
+        .border-yellow { border-left: 4px solid var(--warning); }
+        .border-green  { border-left: 4px solid var(--success); }
+        .border-blue   { border-left: 4px solid var(--primary-light); }
+        
+        .icon-circle {
+            width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 0.9rem; background: var(--card-bg); box-shadow: 0 2px 5px var(--shadow-color);
+        }
+
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+        @keyframes spinSlow { 100% { transform: rotate(360deg); } }
+        .anim-battery { animation: pulse 1.5s infinite; color: var(--warning); }
+        .anim-bike { animation: bounce 2s infinite ease-in-out; color: var(--success); }
+        .anim-time { animation: spinSlow 3s linear infinite; color: var(--primary-light); }
+
+        .toolbar {
+            background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border-radius: 12px; border: 1px solid var(--border-color); padding: 0.5rem 1rem;
+            margin: 0 1.5rem 0.8rem 1.5rem; max-width: 1400px; margin-left: auto; margin-right: auto;
+            box-shadow: 0 4px 15px 0 var(--shadow-color); display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+        }
+        .btn-new {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: white;
+            padding: 0.5rem 1rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;
+            display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);
+            white-space: nowrap; transition: 0.2s; font-size: 0.85rem; height: 36px;
+        }
+        .btn-new:hover { transform: scale(1.03); }
+
+        .search-wrapper { position: relative; flex: 1; max-width: 400px; display: flex; align-items: center; margin: 0 auto; }
+        .search-wrapper input {
+            width: 100%; height: 36px; border-radius: 8px;
+            border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main);
+            font-family: inherit; font-size: 0.85rem; box-sizing: border-box; transition: 0.3s;
+            padding-left: 38px !important; padding-right: 15px !important;
+        }
+        .search-wrapper input:focus { background: var(--card-bg); border-color: var(--primary-light); outline: none; }
+        .search-wrapper i { position: absolute; left: 14px; color: var(--text-sub); font-size: 0.9rem; pointer-events: none; }
+
+        .actions-group { display: flex; gap: 6px; align-items: center; margin-left: auto; }
+        .btn-ghost {
+            background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main);
+            padding: 0 0.8rem; border-radius: 8px; font-weight: 600; cursor: pointer;
+            display: flex; align-items: center; gap: 6px; transition: 0.2s; font-size: 0.8rem; height: 36px; box-sizing: border-box;
+        }
+        .btn-ghost:hover { background: var(--input-bg); border-color: var(--text-sub); }
+        
+        .btn-stop-music {
+            background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger); color: var(--danger);
+            padding: 0 0.8rem; border-radius: 8px; font-weight: 600; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: 0.2s; font-size: 0.8rem; height: 36px; box-sizing: border-box; width: 36px;
+        }
+        .btn-stop-music:hover { background: var(--danger); color: white; }
+        .btn-delete-all { background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); padding: 0; border-radius: 8px; cursor: pointer; transition: 0.2s; font-size: 0.8rem; height: 36px; width: 36px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; }
+        .btn-delete-all:hover { background: var(--danger); color: white; }
+        .icon-btn { width: 36px; padding: 0; justify-content: center; } 
+
+        .section-header { padding: 0; margin-bottom: 0.6rem; font-size: 0.8rem; font-weight: 700; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        
+        .active-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 1rem;
+            padding: 0 1.5rem 1rem 1.5rem; max-width: 1400px; margin: 0 auto;
+        }
+        
+        .active-card {
+            background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border-radius: 12px; padding: 1rem; 
+            box-shadow: 0 4px 12px var(--shadow-color); border: 1px solid var(--border-color);
+            position: relative; overflow: hidden; transition: transform 0.3s;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .active-card:hover { transform: translateY(-2px); }
+
+        .fleet-card {
+            background: linear-gradient(rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.95)), url('amr.png');
+            background-size: cover; background-position: center; gap: 4px;
+        }
+        [data-theme="dark"] .fleet-card { background: linear-gradient(rgba(30, 41, 59, 0.88), rgba(30, 41, 59, 0.95)), url('amr.png'); background-size: cover; background-position: center; }
+
+        .mode-charging { border: 2px solid var(--primary-light); }
+        .mode-ready { border: 2px solid var(--warning); }
+        .mode-full { border: 2px solid var(--success); }
+        .mode-danger { border: 2px solid var(--danger); box-shadow: 0 0 10px rgba(239, 68, 68, 0.3); animation: shakeBorder 2s infinite; }
+
+        @keyframes shakeBorder { 0%, 100% { border-color: var(--danger); } 50% { border-color: rgba(239,68,68,0.4); } }
+
+        .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
+        .status-badge {
+            padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 700;
+            display: flex; align-items: center; gap: 5px; border: 1px solid transparent; transition: 0.3s;
+        }
+        .badge-charging { background: rgba(99, 102, 241, 0.15); color: var(--primary-light); }
+        .badge-ready { background: rgba(245, 158, 11, 0.15); color: var(--warning); border-color: rgba(245, 158, 11, 0.2); }
+        .badge-full { background: rgba(16, 185, 129, 0.15); color: var(--success); border-color: rgba(16, 185, 129, 0.2); }
+        .badge-danger { background: rgba(239, 68, 68, 0.15); color: var(--danger); border-color: rgba(239, 68, 68, 0.3); animation: blink 1s infinite;}
+        .badge-pending { background: var(--input-bg); color: var(--text-sub); border: 1px solid var(--border-color); }
+
+        .progress-container { width: 100%; height: 6px; background: var(--input-border); border-radius: 10px; margin-top: 5px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 10px; transition: width 1s ease-in-out, background-color 0.5s ease; }
+        .bg-primary { background-color: var(--primary-light); }
+        .bg-warning { background-color: var(--warning); }
+        .bg-success { background-color: var(--success); }
+        .bg-danger { background-color: var(--danger); }
+
+        .anim-box { position: relative; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; margin-right: 4px; }
+        .anim-ring { position: absolute; width: 100%; height: 100%; border-radius: 50%; border: 3.1px solid transparent; border-top-color: var(--primary-light); border-right-color: var(--primary-light); animation: spin 1s linear infinite; }
+        .anim-bolt { z-index: 2; font-size: 0.85rem; animation: blink 1s infinite; color: var(--primary-light); }
+        
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes blink { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.3; transform: scale(0.9); } }
+
+        .card-form { display: grid; gap: 8px; }
+        select, input[type="text"], input[type="password"], input[type="number"] {
+            width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color);
+            background: var(--input-bg); color: var(--text-main); font-family: inherit; font-size: 0.8rem; box-sizing: border-box; transition: 0.2s;
+        }
+        select:focus, input[type="text"]:focus { border-color: var(--primary-light); outline: none; background: var(--card-bg); box-shadow: 0 0 0 2px rgba(99,102,241,0.2); }
+        select:disabled { opacity: 0.6; cursor: not-allowed; }
+        .card-info-row { display: flex; justify-content: space-between; margin-bottom: 2px; font-size: 0.8rem; color: var(--text-sub); }
+        .card-info-val { font-weight: 600; color: var(--text-main); }
+
+        .btn-start { width: 100%; background: var(--primary); color: white; border: none; padding: 8px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-top: 4px; font-size: 0.85rem; transition:0.2s;}
+        .btn-stop-init { width: 100%; background: var(--warning); color: white; border: none; padding: 8px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-top: 4px; font-size: 0.85rem; transition:0.2s;}
+        .btn-swap-confirm { width: 100%; background: var(--success); color: white; border: none; padding: 8px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-top: 4px; font-size: 0.85rem; transition:0.2s;}
+        .btn-cancel { width: 100%; background: var(--input-bg); color: var(--text-sub); border: 1px solid var(--border-color); padding: 8px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-top: 4px; font-size: 0.85rem; transition:0.2s;}
+        .btn-cancel:hover { background: #e2e8f0; }
+
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+        .toast {
+            background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            color: var(--text-main); padding: 12px 20px; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            display: flex; align-items: center; gap: 12px; border-left: 4px solid var(--primary);
+            animation: slideInRight 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; 
+            min-width: 250px; font-weight: 500; font-size: 0.85rem; border: 1px solid var(--border-color); border-left-width: 4px;
+        }
+        .toast.success { border-left-color: var(--success); }
+        .toast.error { border-left-color: var(--danger); }
+        .toast.warning { border-left-color: var(--warning); }
+        
+        @keyframes slideInRight { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOutUp { to { opacity: 0; transform: translateY(-20px); } }
+
+        .table-wrapper {
+            background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border-radius: 12px; box-shadow: 0 4px 15px 0 var(--shadow-color);
+            margin: 0 1.5rem 1.5rem 1.5rem; max-width: 1400px; margin-left: auto; margin-right: auto;
+            overflow: hidden; overflow-x: auto; border: 1px solid var(--border-color);
+        }
+        table { width: 100%; border-collapse: collapse; min-width: 900px; }
+        thead { background: var(--table-head-bg); border-bottom: 2px solid var(--border-color); }
+        th { padding: 0.7rem; text-align: left; font-size: 0.7rem; text-transform: uppercase; color: var(--text-sub); font-weight: 700; letter-spacing: 0.5px; }
+        .sortable { cursor: pointer; transition: 0.2s; }
+        .sortable:hover { color: var(--primary-light); background: rgba(99,102,241,0.05); }
+        .sortable i { font-size: 0.65rem; opacity: 0.6; margin-left: 3px; }
+        td { padding: 0.6rem 0.7rem; border-bottom: 1px solid var(--border-color); color: var(--text-main); vertical-align: middle; font-size: 0.8rem; }
+        tr:hover td { background: var(--input-bg); }
+
+        .modal-bg {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(8px); z-index: 200;
+            justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s;
+        }
+        .modal-bg.open { opacity: 1; }
+        .modal-box {
+            background: var(--glass-bg); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+            padding: 1.5rem; border-radius: 16px; width: 90%; max-width: 480px; 
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3); transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid var(--border-color);
+        }
+        .modal-bg.open .modal-box { transform: scale(1); }
+        
+        .modal-large { max-width: 1100px; height: auto; max-height: 95vh; display: flex; flex-direction: column; padding: 1.2rem; }
+        .modal-body { flex: 1; overflow-y: auto; margin-top: 0px; padding-right:5px; }
+        .analytics-card-small { background: var(--card-bg); padding: 8px; border-radius: 8px; border:1px solid var(--border-color); box-shadow: 0 2px 6px var(--shadow-color); margin-bottom: 8px; }
+        
+        .file-upload-box { border: 2px dashed var(--border-color); background: var(--input-bg); padding: 20px; text-align: center; border-radius: 12px; cursor: pointer; transition: 0.3s; margin-bottom: 15px; }
+        .file-upload-box input { display: none; }
+        .sound-status { font-size: 0.85rem; color: var(--success); font-weight: 600; margin-top: 10px; display: none; }
+        .list-group { margin: 0; padding: 0; list-style: none; }
+        .list-group-item { display: flex; justify-content: space-between; align-items: center; padding: 4px 6px; border-bottom: 1px solid var(--border-color); font-size: 0.75rem; transition: background 0.2s; }
+        .pin-input { font-size: 1.5rem !important; letter-spacing: 10px; text-align: center; font-weight: 700; padding: 10px !important; margin: 15px 0; }
+    </style>
+</head>
+<body>
+
+<div id="toastContainer" class="toast-container"></div>
+
+<header>
+    <div class="brand">
+        <i class="fa-solid fa-bolt-lightning" style="font-size: 1rem;"></i>
+        <span>Battery Management<span style="font-weight:400; opacity:0.7;">PRO V</span></span>
+    </div>
+    <div class="header-controls">
+        <span class="date-badge" id="headerDate">--</span>
+        <button class="theme-btn" onclick="window.toggleTheme()" title="Toggle Night Mode">
+            <i class="fa-solid fa-moon" id="themeIcon"></i>
+        </button>
+    </div>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; align-items: flex-start; gap: 1.5rem; max-width: 1400px; margin: 1rem auto; padding: 0 1.5rem;">
+    <div style="flex: 1.5; min-width: 400px;">
+        <div class="section-header"><div><i class="fa-solid fa-truck" style="color:var(--accent);"></i> AMR Fleet Dashboard</div></div>
+        <div id="fleetGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;"></div>
+    </div>
+    <div style="flex: 1; min-width: 350px;">
+        <div class="section-header"><div style="display:flex; align-items:center; gap:8px;"><i class="fa-solid fa-chart-pie" style="color:var(--text-sub);"></i> Quick Stats</div></div>
+        <div style="display: flex; flex-direction: row; gap: 1rem; flex-wrap: wrap;">
+            <div class="mini-stat-card border-yellow">
+                <div>
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom: 5px;">
+                        <div class="icon-circle anim-battery"><i class="fa-solid fa-plug-circle-bolt"></i></div>
+                        <span style="color:var(--text-sub); font-weight:600; font-size:0.75rem; text-transform: uppercase;">Charging</span>
+                    </div>
+                    <h2 id="stat-active" style="margin:0; font-size:1.4rem; font-weight:800; color:var(--text-main);">0</h2>
+                </div>
+            </div>
+            <div class="mini-stat-card border-green">
+                <div>
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom: 5px;">
+                        <div class="icon-circle anim-bike"><i class="fa-solid fa-clipboard-check"></i></div>
+                        <span style="color:var(--text-sub); font-weight:600; font-size:0.75rem; text-transform: uppercase;">Done Today</span>
+                    </div>
+                    <h2 id="stat-done" style="margin:0; font-size:1.4rem; font-weight:800; color:var(--text-main);">0</h2>
+                </div>
+            </div>
+            <div class="mini-stat-card border-blue" style="flex-direction: column; align-items: flex-start; justify-content: center;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom: 5px;">
+                    <div class="icon-circle anim-time"><i class="fa-solid fa-stopwatch-20"></i></div>
+                    <span style="color:var(--text-sub); font-weight:600; font-size:0.75rem; text-transform: uppercase;">Avg Duration</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+                    <h2 id="stat-avg" style="margin:0; font-size:1.3rem; font-weight:800; color:var(--text-main);">--</h2>
+                    <span id="stat-eff-badge" style="font-size:0.6rem; font-weight:700; padding:2px 4px; border-radius:4px; display:none;">--</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="section-header" style="max-width: 1400px; margin: 0.5rem auto 0.4rem auto; padding: 0 1.5rem;">
+    <div><i class="fa-solid fa-tower-broadcast" style="color:var(--primary-light);"></i> Live Charging Monitor</div>
+</div>
+<div id="activeGrid" class="active-grid"></div>
+
+<div class="toolbar">
+    <div style="display: flex; gap: 10px;">
+        <button class="btn-new" onclick="window.addNew()"><i class="fa-solid fa-plus-circle"></i> New Entry</button>
+    </div>
+    
+    <div class="search-wrapper">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="searchInput" placeholder="Search logs..." onkeyup="window.render()">
+    </div>
+    <div class="actions-group">
+        <button class="btn-stop-music" onclick="window.stopCurrentAudio()"><i class="fa-solid fa-volume-xmark"></i></button>
+        <button class="btn-ghost icon-btn" onclick="window.openSoundSettings()" title="Custom Sound"><i class="fa-solid fa-music"></i></button>
+        <button class="btn-ghost icon-btn" onclick="window.openSettings()" title="System Settings"><i class="fa-solid fa-gear"></i></button>
+        <button class="btn-ghost" onclick="window.openAnalytics()"><i class="fa-solid fa-chart-simple"></i> Analytics</button>
+        <button class="btn-ghost" onclick="window.exportCSV()"><i class="fa-solid fa-file-csv"></i> CSV</button>
+        <button class="btn-delete-all" onclick="window.requestDeleteAll()" title="Delete All"><i class="fa-solid fa-trash-can"></i></button>
+    </div>
+</div>
+
+<div class="section-header" style="max-width: 1400px; margin: 0 auto 0.4rem auto; padding: 0 1.5rem;">
+    <i class="fa-solid fa-clock-rotate-left" style="color:var(--text-sub);"></i> Log History
+</div>
+<div class="table-wrapper">
+    <table>
+        <thead>
+            <tr>
+                <th class="sortable" onclick="window.setSort('date')">Date <i class="fa-solid fa-sort"></i></th>
+                <th class="sortable" onclick="window.setSort('shift')">Shift <i class="fa-solid fa-sort"></i></th>
+                <th class="sortable" onclick="window.setSort('batch')">Batch <i class="fa-solid fa-sort"></i></th>
+                <th class="sortable" onclick="window.setSort('area')">Battery Area <i class="fa-solid fa-sort"></i></th>
+                <th style="color:var(--primary-light);">Start</th>
+                <th>Emp ID</th>
+                <th style="color:var(--warning);">From AMR</th>
+                <th style="color:#b45309;">End</th>
+                <th>Swap Shift</th>
+                <th>Swap ID</th>
+                <th style="color:var(--success);">To AMR</th>
+                <th>Swap Batch</th>
+                <th class="sortable" onclick="window.setSort('durationVal')">Duration <i class="fa-solid fa-sort"></i></th>
+                <th style="text-align:right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody id="historyBody"></tbody>
+    </table>
+</div>
+
+<div id="editModal" class="modal-bg">
+    <div class="modal-box">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+            <h2 style="margin:0; font-size:1.2rem;"><i class="fa-solid fa-pen" style="color:var(--primary);"></i> Edit Swap Log</h2>
+            <button class="btn-ghost" onclick="window.closeModal('editModal')" style="padding:0.4rem;"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="card-form" id="editFormArea"></div>
+        <button class="btn-start" onclick="window.saveEdit()" style="margin-top:15px;">Save Changes</button>
+    </div>
+</div>
+
+<div id="settingsModal" class="modal-bg">
+    <div class="modal-box">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+            <h2 style="margin:0; font-size:1.2rem;"><i class="fa-solid fa-gear" style="color:var(--primary);"></i> System Settings</h2>
+            <button class="btn-ghost" onclick="window.closeModal('settingsModal')" style="padding:0.4rem;"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="pinSetupArea"></div>
+        <div style="margin-top: 25px; border-top: 1px dashed var(--border-color); padding-top: 15px;">
+            <h3 style="margin:0 0 10px 0; font-size:1rem;"><i class="fa-solid fa-bolt" style="color:var(--warning);"></i> Power Config</h3>
+            <div>
+                <label style="font-size:0.75rem; font-weight:600; color:var(--text-sub);">Battery Capacity (kWh)</label>
+                <input type="number" id="batKwh" step="0.1" value="5">
+            </div>
+            <button class="btn-ghost" onclick="window.savePowerSettings()" style="margin-top:10px; width:100%; justify-content:center; color:var(--primary-light);">Save Power Metrics</button>
+        </div>
+    </div>
+</div>
+
+<div id="pinVerifyModal" class="modal-bg">
+    <div class="modal-box" style="text-align: center; max-width: 350px;">
+        <i class="fa-solid fa-lock" style="font-size: 2.5rem; color: var(--danger); margin-bottom: 0.5rem;"></i>
+        <h2 style="margin-bottom: 5px; font-size:1.2rem;">Action Protected</h2>
+        <input type="password" id="verifyPinInput" class="pin-input" placeholder="••••" maxlength="4" inputmode="numeric">
+        <div style="display: flex; gap: 10px; justify-content: center; margin-top:10px;">
+            <button class="btn-ghost" onclick="window.closeModal('pinVerifyModal')" style="flex:1;">Cancel</button>
+            <button class="btn-start" onclick="window.verifyAndExecute()" style="flex:1; margin-top:0;">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<div id="soundModal" class="modal-bg">
+    <div class="modal-box">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+            <h2 style="margin:0; font-size:1.2rem;">Alert Sound Settings</h2>
+            <button class="btn-ghost" onclick="window.closeModal('soundModal')" style="padding:0.4rem;"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <label class="file-upload-box">
+            <input type="file" id="audioInput" accept="audio/*" onchange="window.handleAudioUpload(this)">
+            <i class="fa-solid fa-cloud-arrow-up" style="font-size:1.5rem; color:var(--primary);"></i>
+            <div style="margin-top:5px; font-weight:600;">Click to Upload Sound</div>
+        </label>
+        <div id="soundStatus" class="sound-status"><i class="fa-solid fa-check-circle"></i> Custom Sound Active</div>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button class="btn-ghost" onclick="window.previewSound()" style="flex:1;"><i class="fa-solid fa-play"></i> Test</button>
+            <button class="btn-ghost" onclick="window.removeCustomSound()" style="flex:1; color:var(--danger);"><i class="fa-solid fa-trash"></i> Reset</button>
+        </div>
+    </div>
+</div>
+
+<div id="deleteModal" class="modal-bg">
+    <div class="modal-box" style="text-align: center;">
+        <div style="font-size: 2.5rem; color: var(--danger); margin-bottom: 0.5rem;"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <h2 style="margin-bottom: 5px; font-size:1.2rem;">Delete All Data?</h2>
+        <div style="display: flex; gap: 10px; justify-content: center; margin-top:1.5rem;">
+            <button class="btn-ghost" onclick="window.closeModal('deleteModal')">Cancel</button>
+            <button style="background:var(--danger); color:white; border:none; padding:0.5rem 1rem; border-radius:8px; font-weight:600; cursor:pointer;" onclick="window.deleteAllData()">Yes, Delete All</button>
+        </div>
+    </div>
+</div>
+
+<div id="analyticsModal" class="modal-bg">
+    <div class="modal-box modal-large">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+            <h2 style="margin:0; font-size:1.2rem;"><i class="fa-solid fa-chart-simple" style="color:var(--primary);"></i> Analytics Center</h2>
+            <button class="btn-ghost" onclick="window.closeModal('analyticsModal')" style="padding:0.4rem;"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 8px;">
+                <div class="analytics-card-small" style="text-align: center;">
+                    <span style="font-size: 0.65rem; color: var(--text-sub); font-weight: 700; text-transform:uppercase;">Efficiency</span>
+                    <div id="kpi-eff" style="font-size: 1.1rem; font-weight: 800; color: var(--primary);">0%</div>
+                </div>
+                <div class="analytics-card-small" style="text-align: center;">
+                    <span style="font-size: 0.65rem; color: var(--text-sub); font-weight: 700; text-transform:uppercase;">Total Hours</span>
+                    <div id="kpi-hours" style="font-size: 1.1rem; font-weight: 800; color: var(--success);">0h</div>
+                </div>
+                <div class="analytics-card-small" style="text-align: center;">
+                    <span style="font-size: 0.65rem; color: var(--text-sub); font-weight: 700; text-transform:uppercase;">Premature</span>
+                    <div id="kpi-error" style="font-size: 1.1rem; font-weight: 800; color: var(--danger);">0%</div>
+                </div>
+                <div class="analytics-card-small" style="text-align: center;">
+                    <span style="font-size: 0.65rem; color: var(--text-sub); font-weight: 700; text-transform:uppercase;">Energy Used</span>
+                    <div id="kpi-energy" style="font-size: 1.1rem; font-weight: 800; color: var(--warning);">0 kWh</div>
+                </div>
+            </div>
+
+            <div class="analytics-card-small">
+                <h4 style="margin:0 0 4px 0; color:var(--text-sub); font-size:0.7rem; display:flex; align-items:center; justify-content:space-between;">
+                    <span><i class="fa-solid fa-truck-fast" style="color:var(--accent);"></i> VEHICLE RUNTIME ANALYSIS</span>
+                </h4>
+                <div id="vehicleRuntimeList" style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 6px;"></div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px;">
+                <div class="analytics-card-small">
+                    <h4 style="margin:0 0 2px 0; color:var(--text-sub); font-size:0.7rem;">VEHICLE SWAPS</h4>
+                    <div style="height: 100px;"><canvas id="vehicleChart"></canvas></div>
+                </div>
+                <div class="analytics-card-small">
+                    <h4 style="margin:0 0 2px 0; color:var(--text-sub); font-size:0.7rem;">PEAK SWAP HOURS</h4>
+                    <div style="height: 100px;"><canvas id="peakTimeChart"></canvas></div>
+                </div>
+                <div class="analytics-card-small">
+                    <h4 style="margin:0 0 2px 0; color:var(--text-sub); font-size:0.7rem;">BATTERY USAGE</h4>
+                    <div style="height: 100px;"><canvas id="batteryUsageChart"></canvas></div>
+                </div>
+            </div>
+            
+            <div class="analytics-card-small">
+                <h4 style="margin:0 0 2px 0; color:var(--text-sub); font-size:0.7rem; display:flex; align-items:center; justify-content:space-between;">
+                    <span><i class="fa-solid fa-battery-quarter" style="color:var(--warning);"></i> BATTERY DEPLETION TIME (Avg runtime in AMR)</span>
+                </h4>
+                <div style="height: 85px;"><canvas id="depletionChart"></canvas></div>
+                <div id="depletionLeaderboard" style="margin-top:2px;"></div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div class="analytics-card-small" style="display: flex; flex-direction: column;">
+                    <h4 style="margin:0 0 4px 0; color:var(--text-main); font-size:0.75rem;"><i class="fa-solid fa-heart-pulse" style="color:var(--success);"></i> BATTERY HEALTH</h4>
+                    <ul class="list-group" id="batteryHealthList" style="flex:1; overflow-y:auto; max-height:100px;"></ul>
+                </div>
+                <div class="analytics-card-small" style="border-color: rgba(239,68,68,0.3); display: flex; flex-direction: column;">
+                    <h4 style="margin:0 0 4px 0; color:var(--danger); font-size:0.75rem;"><i class="fa-solid fa-triangle-exclamation"></i> CRITICAL LOGS (<4h)</h4>
+                    <div id="alertList" style="flex:1; overflow-y:auto; max-height:100px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAiZl9YhGsfKIKTTK5hMqqhWoIiYbri9rI",
+        authDomain: "material-controler.firebaseapp.com",
+        projectId: "material-controler",
+        storageBucket: "material-controler.firebasestorage.app",
+        messagingSenderId: "782401252699",
+        appId: "1:782401252699:web:19d6775e92c428c224fe7e"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const firestoreDb = getFirestore(app);
+    const logsCollection = collection(firestoreDb, "battery_logs");
+
+    let db = []; 
+    let powerSettings = JSON.parse(localStorage.getItem('powerSettings')) || { capacity: 5 }; 
+    let charts = {};
+    let isDark = localStorage.getItem('theme') === 'dark';
+    let currentAudio = null;
+    let pendingDeleteAction = null; 
+    let currentSort = { key: 'createdAt', asc: false };
+    let currentEditId = null;
+
+    let swapTimers = {};
+    let swapIntervals = {};
+
+    const BATCHES = ['A1', 'A2', 'A3', 'A7'];
+    const VEHICLES = ['Chera', 'Chola', 'Pandya'];
+    const AREAS = [1,2,3,4,5,6].map(n=>'Battery-'+n);
+
+    // --- TIMERS FOR AUTO-DELETE PENDING ENTRIES ---
+    setInterval(() => {
+        const now = Date.now();
+        document.querySelectorAll('.pending-countdown').forEach(async el => {
+            const expireTs = parseInt(el.getAttribute('data-expire'));
+            const id = el.getAttribute('data-id');
+            const left = Math.round((expireTs - now) / 1000);
+            if (left > 0) {
+                el.innerText = `(${left}s)`;
+            } else {
+                el.innerText = `(0s)`;
+                if(!el.dataset.deleting) {
+                    el.dataset.deleting = "true";
+                    try { await deleteDoc(doc(firestoreDb, "battery_logs", id)); } catch(e){}
+                }
+            }
+        });
+    }, 1000);
+
+    function computeBatteryDepletion(completed) {
+        const stats = {};
+        AREAS.forEach(a => stats[a] = { removals: 0, totalRuntime: 0, lastRuntime: null });
+        AREAS.forEach(areaName => {
+            const areaLogs = completed.filter(r => r.area === areaName && r.endTs).sort((a, b) => a.endTs - b.endTs);
+            for (let i = 0; i < areaLogs.length - 1; i++) {
+                const placedTs = areaLogs[i].endTs;
+                const removedTs = areaLogs[i + 1].startTs;
+                if (placedTs && removedTs && removedTs > placedTs) {
+                    const runtimeHrs = (removedTs - placedTs) / 3600000;
+                    stats[areaName].removals++;
+                    stats[areaName].totalRuntime += runtimeHrs;
+                }
+            }
+        });
+        return stats;
+    }
+
+    function computeVehicleRuntime(completed, active, nowMs) {
+        const stats = {};
+        VEHICLES.forEach(v => stats[v] = { totalRuntime: 0, cycles: 0, isLive: false, liveRuntime: 0 });
+        VEHICLES.forEach(vname => {
+            let events = [];
+            completed.forEach(r => { if(r.toAmr === vname && r.endTs) events.push({ type: 'in', ts: r.endTs }); if(r.fromAmr === vname && r.startTs) events.push({ type: 'out', ts: r.startTs }); });
+            active.forEach(r => { if(r.fromAmr === vname && r.startTs) events.push({ type: 'out', ts: r.startTs }); });
+            events.sort((a, b) => a.ts - b.ts);
+
+            let lastInTs = null;
+            events.forEach(ev => {
+                if (ev.type === 'in') lastInTs = ev.ts;
+                else if (ev.type === 'out' && lastInTs) { if (ev.ts > lastInTs) { stats[vname].totalRuntime += (ev.ts - lastInTs); stats[vname].cycles++; } lastInTs = null; }
+            });
+
+            if (lastInTs && nowMs > lastInTs) {
+                stats[vname].isLive = true; stats[vname].liveRuntime = (nowMs - lastInTs); stats[vname].totalRuntime += stats[vname].liveRuntime;
+            }
+        });
+        return stats;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('headerDate').innerText = new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+        window.applyTheme(); window.checkSoundStatus(); 
+        
+        const q = query(logsCollection); 
+        onSnapshot(q, (snapshot) => {
+            db = [];
+            snapshot.forEach((documentSnapshot) => { db.push({ id: documentSnapshot.id, ...documentSnapshot.data() }); });
+            db.sort((a, b) => { return (b.createdAt || 0) - (a.createdAt || 0); });
+            window.render(); window.updateStats();
+            if(document.getElementById('analyticsModal').classList.contains('open')){ window.updateAnalyticsData(); }
+        });
+
+        setInterval(() => {
+            window.render();
+            if(document.getElementById('analyticsModal').classList.contains('open')) window.updateAnalyticsData();
+        }, 30000); 
+    });
+
+    window.showToast = function(msg, type='success') {
+        const container = document.getElementById('toastContainer'); const toast = document.createElement('div'); toast.className = `toast ${type}`;
+        let icon = 'fa-check-circle'; if(type==='error') icon = 'fa-circle-xmark'; if(type==='warning') icon = 'fa-triangle-exclamation';
+        toast.innerHTML = `<i class="fa-solid ${icon}" style="color:var(--${type==='error'?'danger':type}); font-size:1.2rem;"></i> <span>${msg}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => { toast.style.animation = 'fadeOutUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards'; setTimeout(()=>toast.remove(), 400); }, 3000);
+    }
+
+    window.toggleTheme = function() { isDark = !isDark; localStorage.setItem('theme', isDark ? 'dark' : 'light'); window.applyTheme(); }
+    window.applyTheme = function() { const body = document.body; const icon = document.getElementById('themeIcon'); if (isDark) { body.setAttribute('data-theme', 'dark'); icon.className = 'fa-solid fa-sun'; } else { body.removeAttribute('data-theme'); icon.className = 'fa-solid fa-moon'; } }
+
+    window.openSettings = function() {
+        const pin = localStorage.getItem('adminPIN'); const area = document.getElementById('pinSetupArea');
+        if (pin) {
+            area.innerHTML = `
+                <div style="background:rgba(16, 185, 129, 0.1); padding:10px; border-radius:8px; margin-bottom:15px; border:1px solid var(--border-color);">
+                    <i class="fa-solid fa-shield-check" style="color:var(--success);"></i> <strong>PIN Protection is ON</strong>
+                </div>
+                <input type="password" id="oldPin" class="pin-input" placeholder="Old PIN" maxlength="4" inputmode="numeric">
+                <input type="password" id="newPin" class="pin-input" placeholder="New PIN" maxlength="4" inputmode="numeric">
+                <button class="btn-start" onclick="window.updatePIN()">Update PIN</button>
+                <button class="btn-cancel" onclick="window.removePIN()" style="width:100%; margin-top:10px; color:var(--danger); border-color:var(--danger);">Disable Protection</button>
+            `;
+        } else {
+            area.innerHTML = `<p style="font-size:0.85rem; color:var(--text-sub); margin-bottom:15px;">Set a 4-digit PIN to prevent accidental deletions.</p><input type="password" id="newPin" class="pin-input" placeholder="••••" maxlength="4" inputmode="numeric"><button class="btn-start" onclick="window.setPIN()">Save Security PIN</button>`;
+        }
+        document.getElementById('batKwh').value = powerSettings.capacity; window.openModal('settingsModal');
+    }
+
+    window.savePowerSettings = function() { powerSettings = { capacity: parseFloat(document.getElementById('batKwh').value) || 0 }; localStorage.setItem('powerSettings', JSON.stringify(powerSettings)); window.showToast("Power Config saved!"); window.closeModal('settingsModal'); }
+    window.setPIN = function() { const newPin = document.getElementById('newPin').value; if(newPin.length < 4) { window.showToast("PIN must be at least 4 digits.", "error"); return; } localStorage.setItem('adminPIN', newPin); window.showToast("Security PIN enabled."); window.closeModal('settingsModal'); }
+    window.updatePIN = function() { const savedPin = localStorage.getItem('adminPIN'); const oldPin = document.getElementById('oldPin').value; const newPin = document.getElementById('newPin').value; if(oldPin !== savedPin) { window.showToast("Current PIN is incorrect!", "error"); return; } if(newPin.length < 4) { window.showToast("New PIN must be at least 4 digits.", "error"); return; } localStorage.setItem('adminPIN', newPin); window.showToast("PIN successfully updated."); window.closeModal('settingsModal'); }
+    window.removePIN = function() { const savedPin = localStorage.getItem('adminPIN'); const oldPin = document.getElementById('oldPin').value; if(oldPin !== savedPin) { window.showToast("Enter Current PIN to disable.", "error"); return; } if(confirm("Are you sure you want to remove PIN protection?")) { localStorage.removeItem('adminPIN'); window.showToast("Security disabled.", "warning"); window.closeModal('settingsModal'); } }
+
+    window.requestAction = function(type, id = null) {
+        const pin = localStorage.getItem('adminPIN');
+        if (pin) { pendingDeleteAction = { type: type, id: id }; document.getElementById('verifyPinInput').value = ''; window.openModal('pinVerifyModal'); setTimeout(() => document.getElementById('verifyPinInput').focus(), 300); } 
+        else {
+            if (type === 'single') { if(confirm("Remove this entry from history?")) deleteDoc(doc(firestoreDb, "battery_logs", id)).then(() => window.showToast("Log removed.")); } 
+            else if (type === 'all') window.openModal('deleteModal'); 
+            else if (type === 'edit') window.showEditForm(id);
+        }
+    }
+    window.requestDelete = function(id) { window.requestAction('single', id); }
+    window.requestDeleteAll = function() { window.requestAction('all'); }
+    window.requestEdit = function(id) { window.requestAction('edit', id); }
+
+    window.verifyAndExecute = async function() {
+        const pin = localStorage.getItem('adminPIN'); const input = document.getElementById('verifyPinInput').value;
+        if (input === pin) {
+            window.closeModal('pinVerifyModal');
+            if (pendingDeleteAction.type === 'single') { await deleteDoc(doc(firestoreDb, "battery_logs", pendingDeleteAction.id)); window.showToast("Log removed successfully."); } 
+            else if (pendingDeleteAction.type === 'all') window.deleteAllData(); 
+            else if (pendingDeleteAction.type === 'edit') window.showEditForm(pendingDeleteAction.id);
+            pendingDeleteAction = null;
+        } else { window.showToast("Incorrect PIN!", "error"); document.getElementById('verifyPinInput').value = ''; document.getElementById('verifyPinInput').focus(); }
+    }
+
+    window.deleteActiveEntry = async function(id) { if(confirm("Remove this entry?")) { await deleteDoc(doc(firestoreDb, "battery_logs", id)); window.showToast("Entry removed."); } }
+
+    window.showEditForm = function(id) {
+        currentEditId = id; const row = db.find(r => r.id === id); if(!row) return;
+        document.getElementById('editFormArea').innerHTML = `
+            <input type="text" id="editStartId" value="${row.startId || ''}" placeholder="Start Emp ID">
+            <select id="editStartBatch"><option value="">Start Batch</option>${BATCHES.map(b => `<option value="${b}" ${row.batch===b?'selected':''}>${b}</option>`).join('')}</select>
+            <select id="editFromAmr"><option value="">From AMR</option>${VEHICLES.map(v => `<option value="${v}" ${row.fromAmr===v?'selected':''}>${v}</option>`).join('')}</select>
+            <hr style="border:0; border-top:1px dashed var(--border-color); margin:10px 0;">
+            <input type="text" id="editEndId" value="${row.endId || ''}" placeholder="Swap Emp ID">
+            <select id="editEndBatch"><option value="">Swap Batch</option>${BATCHES.map(b => `<option value="${b}" ${row.endBatch===b?'selected':''}>${b}</option>`).join('')}</select>
+            <select id="editToAmr"><option value="">To AMR</option>${VEHICLES.map(v => `<option value="${v}" ${row.toAmr===v?'selected':''}>${v}</option>`).join('')}</select>
+        `;
+        window.openModal('editModal');
+    }
+
+    window.saveEdit = async function() {
+        const row = db.find(r => r.id === currentEditId);
+        if(row) {
+            await updateDoc(doc(firestoreDb, "battery_logs", currentEditId), { startId: document.getElementById('editStartId').value, batch: document.getElementById('editStartBatch').value, fromAmr: document.getElementById('editFromAmr').value, endId: document.getElementById('editEndId').value, endBatch: document.getElementById('editEndBatch').value, toAmr: document.getElementById('editToAmr').value });
+            window.closeModal('editModal'); window.showToast("Log changes saved.");
+        }
+    }
+
+    window.openSoundSettings = function() { window.openModal('soundModal'); }
+    window.handleAudioUpload = function(input) { const file = input.files[0]; if (!file) return; if (file.size > 2000000) { window.showToast("Limit 2MB.", "error"); input.value = ""; return; } const reader = new FileReader(); reader.onload = function(e) { try { localStorage.setItem('customAlertSound', e.target.result); window.checkSoundStatus(); window.showToast("Sound uploaded!"); window.previewSound(); } catch (err) { window.showToast("Storage full!", "error"); } }; reader.readAsDataURL(file); }
+    window.removeCustomSound = function() { localStorage.removeItem('customAlertSound'); document.getElementById('audioInput').value = ""; window.checkSoundStatus(); window.showToast("Reset to default."); }
+    window.checkSoundStatus = function() { const hasSound = localStorage.getItem('customAlertSound'); const statusDiv = document.getElementById('soundStatus'); if(hasSound) statusDiv.style.display = 'block'; else statusDiv.style.display = 'none'; }
+    window.previewSound = function() { window.playAlert(true); }
+    window.playAlert = function(force = false) { window.stopCurrentAudio(); const customSound = localStorage.getItem('customAlertSound') || 'Mister-amr charging complete-someone is calling you-[FDMR.Party].mp3'; currentAudio = new Audio(customSound); currentAudio.play().catch(e => { if(force) window.showToast("Audio blocked. Click anywhere.", "error"); }); }
+    window.stopCurrentAudio = function() { if (currentAudio) { currentAudio.pause(); currentAudio.currentTime = 0; currentAudio = null; } }
+    window.getAutoShift = function() { const now = new Date(); const totalMin = now.getHours() * 60 + now.getMinutes(); if (totalMin >= 390 && totalMin < 870) return 'A'; if (totalMin >= 870 && totalMin < 1350) return 'B'; return 'C'; }
+
+    // --- NEW: Reset Pending Timer Function ---
+    window.resetPendingTimer = async function(id) {
+        await updateDoc(doc(firestoreDb, "battery_logs", id), {
+            pendingExpireTs: Date.now() + 40000 // Resets to 40 seconds
+        });
+    }
+
+    window.addNew = async function() {
+        const btn = document.querySelector('.btn-new'); const originalText = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...'; btn.disabled = true;
+        try {
+            const newLog = {
+                status: 'Pending', date: '--', shift: window.getAutoShift(), batch: '', area: '', startId: '', startTime: '', startTs: 0, fromAmr: '',
+                endShift: '', endId: '', endBatch: '', toAmr: '', endTime: '', endTs: 0, duration: '--', durationVal: 0, lockedStart: false, lockedEnd: false, alert4h: false, alert6h: false, isSwapping: false,
+                pendingExpireTs: Date.now() + 40000, // 40s auto-delete timer
+                createdAt: Date.now()
+            };
+            await addDoc(logsCollection, newLog); window.showToast("New Blank Entry Created");
+        } catch (error) { alert("Error: " + error.message); } finally { btn.innerHTML = originalText; btn.disabled = false; }
+    }
+
+    window.startSession = async function(id) {
+        const row = db.find(r => r.id === id);
+        if(!row.batch || !row.area || !row.startId || !row.fromAmr) { window.showToast("Please fill Batch, Area, ID & From AMR", "warning"); return; }
+        const lastReceivedInAMR = db.filter(r => r.toAmr === row.fromAmr && r.endTs).sort((a,b) => b.endTs - a.endTs)[0];
+        if (lastReceivedInAMR && lastReceivedInAMR.area !== row.area) { if(!confirm(`எச்சரிக்கை: ${row.fromAmr} வண்டியில் ${lastReceivedInAMR.area} இருப்பதாக சிஸ்டம் காட்டுகிறது. ஆனால் நீங்கள் ${row.area} ஐ செலக்ட் செய்துள்ளீர்கள். இதை உறுதிப்படுத்தவும்.`)) return; }
+        const now = new Date();
+        await updateDoc(doc(firestoreDb, "battery_logs", id), { date: now.toLocaleDateString(), startTime: now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}), startTs: now.getTime(), shift: window.getAutoShift(), status: 'Charging', lockedStart: true, pendingExpireTs: null });
+        window.showToast("Session Started!");
+    }
+
+    window.endSession = async function(id) {
+        const row = db.find(r => r.id === id); if(!row.endId || !row.toAmr || !row.endBatch) { window.showToast("Please fill all Swap details.", "warning"); return; }
+        const now = new Date(); const endTs = now.getTime(); const diff = (endTs - row.startTs)/60000; const h = Math.floor(diff/60); const m = Math.floor(diff%60);
+        await updateDoc(doc(firestoreDb, "battery_logs", id), { endTime: now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}), endTs: endTs, endShift: window.getAutoShift(), duration: `${h}h ${m}m`, durationVal: h + (m/60), status: 'Done', lockedEnd: true, isSwapping: false });
+        window.showToast("Swap Logged!");
+    }
+
+    window.toggleSwapForm = async function(id) { 
+        const row = db.find(r => r.id === id); 
+        if(row) { 
+            const newStatus = !row.isSwapping; await updateDoc(doc(firestoreDb, "battery_logs", id), { isSwapping: newStatus }); 
+            if(newStatus) setTimeout(() => window.resetInlineTimer(id), 500); else { clearTimeout(swapTimers[id]); clearInterval(swapIntervals[id]); }
+        } 
+    }
+
+    // --- UPDATED: Swap timer reset logic for 40s ---
+    window.resetInlineTimer = function(id) {
+        clearTimeout(swapTimers[id]); clearInterval(swapIntervals[id]); let timeLeft = 40; // 40 seconds
+        const updateText = () => { const el = document.getElementById(`timer-${id}`); if(el) el.innerText = `(${timeLeft}s)`; }; updateText();
+        swapIntervals[id] = setInterval(() => { timeLeft--; updateText(); }, 1000);
+        swapTimers[id] = setTimeout(async () => { 
+            clearInterval(swapIntervals[id]); 
+            const row = db.find(r => r.id === id); 
+            if(row && row.isSwapping) { 
+                await updateDoc(doc(firestoreDb, "battery_logs", id), { isSwapping: false }); 
+                window.showToast("Auto cancelled due to inactivity.", "warning"); 
+            } 
+        }, 40000); // 40000 ms
+    }
+
+    window.updateLog = async function(id, key, val) { try { await updateDoc(doc(firestoreDb, "battery_logs", id), { [key]: val }); } catch(e) {} }
+    window.formatETA = function(tsMs, addHours) { const d = new Date(tsMs + (addHours * 60 * 60 * 1000)); return d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}); }
+    window.setSort = function(key) { if(currentSort.key === key) currentSort.asc = !currentSort.asc; else { currentSort.key = key; currentSort.asc = true; } window.render(); }
+
+    window.renderFleet = function() {
+        const grid = document.getElementById('fleetGrid'); if(!grid) return; grid.innerHTML = ''; const nowMs = Date.now();
+        const completedAll = db.filter(r => r.status === 'Done' || r.status === 'Charging Complete'); const depletionStatsAll = computeBatteryDepletion(completedAll);
+
+        VEHICLES.forEach(vname=>{
+            const today = new Date().toLocaleDateString(); const todaySwaps = db.filter(r=>r.toAmr===vname && (r.status==='Done' || r.status === 'Charging Complete') && r.date===today);
+            const lastReceived = db.filter(r => r.toAmr === vname && r.endTs).sort((a,b) => b.endTs - a.endTs)[0];
+            const currentBattery = lastReceived ? lastReceived.area : null;
+            const activeSession = db.find(r => r.fromAmr === vname && r.area === currentBattery && r.status !== 'Done' && r.status !== 'Charging Complete');
+            
+            let status = 'Standby'; let sessionText = '—'; let tagColor = 'rgba(245, 158, 11, 0.2)'; let tagText = 'var(--warning)'; let predictedHtml = '';
+
+            if (lastReceived) {
+                if (activeSession && activeSession.startTs > lastReceived.endTs) {
+                    status = 'Charging / Swapping'; const runMs = activeSession.startTs - lastReceived.endTs; sessionText = `${Math.floor(runMs/3600000)}h ${Math.floor((runMs%3600000)/60000)}m (Last Run)`; tagColor = 'rgba(239, 68, 68, 0.2)'; tagText = 'var(--danger)';
+                } else {
+                    status = 'Running Active'; const runMs = nowMs - lastReceived.endTs; sessionText = `${Math.floor(runMs/3600000)}h ${Math.floor((runMs%3600000)/60000)}m (Live)`; tagColor = 'rgba(16, 185, 129, 0.2)'; tagText = 'var(--success)';
+                    const dep = lastReceived.area ? depletionStatsAll[lastReceived.area] : null;
+                    if (dep && dep.removals > 0) {
+                        const avgRuntimeMs = (dep.totalRuntime / dep.removals) * 3600000; const predictedTs = lastReceived.endTs + avgRuntimeMs; const remainingMs = predictedTs - nowMs; const remAbsMs = Math.abs(remainingMs); const remH = Math.floor(remAbsMs/3600000); const remM = Math.floor((remAbsMs%3600000)/60000);
+                        let predColor = 'var(--success)'; let remText = `due in ${remH}h ${remM}m`; if (remainingMs <= 0) { predColor = 'var(--danger)'; remText = `${remH}h ${remM}m overdue`; } else if (remainingMs < 30*60000) { predColor = 'var(--warning)'; remText = `due in ${remH}h ${remM}m`; }
+                        predictedHtml = `<div style="display:flex; justify-content:space-between; padding:4px 0; border-top:1px dashed var(--border-color); margin-top:4px; font-size:0.75rem;"><span style="color:var(--text-sub);"><i class="fa-solid fa-wand-magic-sparkles"></i> Predicted Swap</span><b style="color:${predColor};">${remText}</b></div>`;
+                    } else { predictedHtml = `<div style="display:flex; justify-content:space-between; padding:4px 0; border-top:1px dashed var(--border-color); margin-top:4px; font-size:0.7rem; color:var(--text-sub);"><span><i class="fa-solid fa-wand-magic-sparkles"></i> Predicted Swap</span><span>No history yet</span></div>`; }
+                }
+            }
+
+            let totalH = 0, errors = 0; todaySwaps.forEach(r=>{ totalH+=(r.durationVal||0); if((r.durationVal||0)<4)errors++; });
+            const batteryPct = todaySwaps.length>0 ? Math.min(Math.round((totalH/todaySwaps.length/6)*100),100) : 0; const health = todaySwaps.length>0 ? Math.round(((todaySwaps.length-errors)/todaySwaps.length)*100) : 0; const batNameShort = currentBattery ? currentBattery.replace('Battery-', 'B') : 'No Battery';
+            
+            grid.innerHTML += `
+            <div class="active-card fleet-card" style="border-top: 4px solid ${tagText}; padding: 0.8rem;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+                    <div>
+                        <div style="font-size:1.1rem; font-weight:800; margin-bottom: 4px;">${vname}</div>
+                        <span style="font-size:0.7rem; background: var(--input-bg); padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border-color); font-weight:700;"><i class="fa-solid fa-car-battery" style="color:var(--primary-light);"></i> ${batNameShort}</span>
+                    </div>
+                    <span style="background:${tagColor}; color:${tagText}; padding:3px 8px; border-radius:12px; font-size:0.7rem; font-weight:bold;">${status}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px dashed var(--border-color); font-size:0.8rem; margin-top:5px;"><span style="color:var(--text-sub);"><i class="fa-solid fa-battery-full"></i> Charge Quality</span><b>${batteryPct}%</b></div>
+                <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px dashed var(--border-color); font-size:0.8rem;"><span style="color:var(--text-sub);"><i class="fa-solid fa-heart"></i> Health</span><b>${health}%</b></div>
+                <div style="display:flex; justify-content:space-between; padding:4px 0; font-size:0.8rem;"><span style="color:var(--text-sub);"><i class="fa-solid fa-stopwatch"></i> Run Time</span><b style="color:${tagText};">${sessionText}</b></div>
+                ${predictedHtml}
+            </div>`;
+        });
+    }
+
+    window.render = function() {
+        const activeContainer = document.getElementById('activeGrid'); const historyBody = document.getElementById('historyBody'); const search = document.getElementById('searchInput').value.toLowerCase(); window.renderFleet();
+        activeContainer.innerHTML = ''; historyBody.innerHTML = ''; const nowMs = Date.now();
+        const active = db.filter(r => r.status !== 'Done' && r.status !== 'Charging Complete' && r.status !== 'Active In AMR');
+        const occupiedAreas = active.filter(r => r.area && r.lockedStart).map(r => r.area);
+        
+        if(active.length === 0) activeContainer.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:1.5rem; color:var(--text-sub); border: 2px dashed var(--border-color); border-radius:12px; font-size:0.85rem;">No active sessions.</div>';
+        
+        active.forEach(r => {
+            if(search && !JSON.stringify(r).toLowerCase().includes(search)) return;
+            let cardClass = ''; let badgeClass = 'badge-pending'; let badgeContent = '<i class="fa-regular fa-circle"></i> Pending'; let durationText = ''; let progressHtml = '';
+
+            if (r.lockedStart) {
+                const elapsedMs = nowMs - r.startTs; const hrs = Math.floor(elapsedMs / 3600000); const mins = Math.floor((elapsedMs % 3600000) / 60000); const elapsedHrs = elapsedMs / 3600000; const eta6 = window.formatETA(r.startTs, 6);
+                let percent = Math.min(100, (elapsedHrs / 6) * 100); let pColor = 'bg-primary';
+                
+                if (elapsedHrs >= 8) { cardClass = 'mode-danger'; badgeClass = 'badge-danger'; badgeContent = '<i class="fa-solid fa-triangle-exclamation"></i> HAZARD (>8h)'; pColor = 'bg-danger'; if (!r.alert6h) { window.playAlert(); updateDoc(doc(firestoreDb, "battery_logs", r.id), {alert6h: true}); } } 
+                else if (elapsedHrs >= 6) { cardClass = 'mode-full'; badgeClass = 'badge-full'; badgeContent = '<i class="fa-solid fa-star"></i> Charged (6h+)'; pColor = 'bg-success'; if (!r.alert6h) { window.playAlert(); updateDoc(doc(firestoreDb, "battery_logs", r.id), {alert6h: true}); } } 
+                else if (elapsedHrs >= 4) { cardClass = 'mode-ready'; badgeClass = 'badge-ready'; badgeContent = '<i class="fa-solid fa-circle-check"></i> Ready (4h+)'; pColor = 'bg-warning'; if (!r.alert4h) { updateDoc(doc(firestoreDb, "battery_logs", r.id), {alert4h: true}); } } 
+                else { cardClass = 'mode-charging'; badgeClass = 'badge-charging'; badgeContent = '<div class="anim-box"><div class="anim-ring"></div><div class="anim-bolt">⚡️</div></div> Charging'; }
+
+                durationText = `<div style="font-size:0.75rem; color:var(--text-sub); margin-top:4px; display:flex; justify-content:space-between; align-items:center;"><span><i class="fa-solid fa-stopwatch"></i> Run: <b>${hrs}h ${mins}m</b></span><span style="font-size:0.65rem; background:var(--input-bg); padding:2px 6px; border-radius:4px; border:1px solid var(--border-color);">ETA: ${eta6}</span></div>`;
+                progressHtml = `<div class="progress-container"><div class="progress-fill ${pColor}" style="width: ${percent}%"></div></div>`;
+            }
+            
+            const areaOptions = AREAS.map(aName => { const isOccupied = occupiedAreas.includes(aName) && r.area !== aName; return `<option value="${aName}" ${r.area===aName ? 'selected' : ''} ${isOccupied ? 'disabled' : ''}>${aName} ${isOccupied ? '(In Use)' : ''}</option>`; }).join('');
+
+            const html = `
+            <div class="active-card ${cardClass}">
+                <div class="card-top">
+                    <div class="status-badge ${badgeClass}">${badgeContent}</div>
+                    ${!r.lockedStart ? `<div style="display:flex; align-items:center; gap:8px;">
+                        <span class="pending-countdown" data-expire="${r.pendingExpireTs}" data-id="${r.id}" style="color:var(--danger); font-size:0.75rem; font-weight:700;"></span>
+                        <button onclick="window.deleteActiveEntry('${r.id}')" style="background:none; border:none; color:#ef4444; cursor:pointer;"><i class="fa-solid fa-trash"></i></button>
+                    </div>` : ''}
+                </div>
+                ${r.lockedStart ? durationText + progressHtml : ''}
+                
+                ${!r.lockedStart ? `
+                    <div class="card-form">
+                        <select onchange="window.updateLog('${r.id}','batch',this.value); window.resetPendingTimer('${r.id}')"><option value="">Select Batch</option>${BATCHES.map(b => `<option value="${b}" ${r.batch===b?'selected':''}>${b}</option>`).join('')}</select>
+                        <select onchange="window.updateLog('${r.id}','area',this.value); window.resetPendingTimer('${r.id}')"><option value="">Battery Area</option>${areaOptions}</select>
+                        <select onchange="window.updateLog('${r.id}','fromAmr',this.value); window.resetPendingTimer('${r.id}')"><option value="">From AMR (Taken Out)</option>${VEHICLES.map(v => `<option value="${v}" ${r.fromAmr===v?'selected':''}>${v}</option>`).join('')}</select>
+                        <input type="text" placeholder="Emp ID" value="${r.startId}" oninput="window.resetPendingTimer('${r.id}')" onchange="window.updateLog('${r.id}','startId',this.value)">
+                        <button class="btn-start" onclick="window.startSession('${r.id}')">Start Charging</button>
+                    </div>` : 
+                    (r.isSwapping ? `
+                        <div class="card-form" style="margin-top:5px; border-top:1px dashed var(--border-color); padding-top:10px;">
+                            <select onchange="window.updateLog('${r.id}','endBatch',this.value); window.resetInlineTimer('${r.id}')"><option value="">Select Batch</option>${BATCHES.map(b => `<option value="${b}" ${r.endBatch===b?'selected':''}>${b}</option>`).join('')}</select>
+                            <input type="text" placeholder="Swap ID" value="${r.endId}" oninput="window.resetInlineTimer('${r.id}')" onchange="window.updateLog('${r.id}','endId',this.value)">
+                            <select onchange="window.updateLog('${r.id}','toAmr',this.value); window.resetInlineTimer('${r.id}')"><option value="">To AMR (Placed In)</option>${VEHICLES.map(v => `<option value="${v}" ${r.toAmr===v?'selected':''}>${v}</option>`).join('')}</select>
+                            
+                            <div style="display:flex; gap:8px; margin-top:4px;">
+                                <button class="btn-swap-confirm" style="flex:1; margin:0;" onclick="window.endSession('${r.id}')">Confirm Swap</button>
+                                <button class="btn-cancel" style="flex:1; margin:0; display:flex; justify-content:center; align-items:center; gap:5px;" onclick="window.toggleSwapForm('${r.id}')">Cancel <span id="timer-${r.id}" style="color:var(--danger); font-weight:bold;">(40s)</span></button>
+                            </div>
+                        </div>
+                    ` : `<hr style="border:0; border-top:1px dashed var(--border-color); margin:4px 0;"><div class="card-info-row"><span>Area</span><span class="card-info-val">${r.area}</span></div><div class="card-info-row"><span>From</span><span class="card-info-val">${r.fromAmr || '-'}</span></div><button class="btn-stop-init" onclick="window.toggleSwapForm('${r.id}')">Stop & Swap</button>`)
+                }
+            </div>`;
+            activeContainer.innerHTML += html;
+        });
+
+        let doneList = db.filter(r => r.status === 'Done' || r.status === 'Charging Complete' || r.status === 'Active In AMR');
+        doneList.sort((a, b) => {
+            let valA = a[currentSort.key] || ''; let valB = b[currentSort.key] || '';
+            if(currentSort.key === 'durationVal' || currentSort.key === 'createdAt') { valA = a[currentSort.key] || 0; valB = b[currentSort.key] || 0; }
+            if(valA < valB) return currentSort.asc ? -1 : 1;
+            if(valA > valB) return currentSort.asc ? 1 : -1;
+            return 0;
+        });
+
+        doneList.forEach(r => {
+            if(search && !JSON.stringify(r).toLowerCase().includes(search)) return;
+            const durColor = (r.durationVal||0) > 0 && (r.durationVal||0) < 4 ? '#ef4444' : '#10b981';
+            historyBody.innerHTML += `
+            <tr>
+                <td>${r.date || '-'}</td><td>${r.shift || '-'}</td><td>${r.batch||'-'}</td><td>${r.area || '-'}</td>
+                <td><span style="background:rgba(99, 102, 241, 0.1); color:var(--primary-light); padding:3px 6px; border-radius:4px; font-weight:600; font-size:0.75rem; border:1px solid var(--border-color);">${r.startTime || '-'}</span></td>
+                <td>${r.startId || '-'}</td><td style="color:var(--warning); font-weight:600;">${r.fromAmr || r.vehicle || '-'}</td>
+                <td><span style="background:rgba(245, 158, 11, 0.1); color:var(--warning); padding:3px 6px; border-radius:4px; font-weight:600; font-size:0.75rem; border:1px solid var(--border-color);">${r.endTime || '-'}</span></td>
+                <td>${r.endShift || '-'}</td><td>${r.endId || '-'}</td><td style="color:var(--success); font-weight:600;">${r.toAmr || r.vehicle || '-'}</td><td>${r.endBatch||'-'}</td>
+                <td style="color:${durColor}; font-weight:700;">${r.duration || '-'}</td>
+                <td style="text-align:right; white-space:nowrap;">
+                    <button onclick="window.requestEdit('${r.id}')" style="background:none; border:none; color:var(--primary-light); cursor:pointer; margin-right:8px;"><i class="fa-solid fa-pen"></i></button>
+                    <button onclick="window.requestDelete('${r.id}')" style="background:none; border:none; color:var(--text-sub); cursor:pointer;"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>`;
+        });
+    }
+
+    window.updateStats = function() {
+        const charging = db.filter(r => r.status === 'Charging' || r.status === 'In Use').length;
+        const doneToday = db.filter(r => (r.status === 'Done' || r.status === 'Charging Complete') && r.date === new Date().toLocaleDateString());
+        const validCharges = doneToday.filter(r => r.durationVal && r.durationVal > 0.25);
+        let total = 0; validCharges.forEach(r => { total += r.durationVal; });
+        document.getElementById('stat-active').innerText = charging; document.getElementById('stat-done').innerText = doneToday.length;
+        if(validCharges.length > 0) {
+            const avgVal = total / validCharges.length; const h = Math.floor(avgVal); const m = Math.floor((avgVal - h) * 60);
+            document.getElementById('stat-avg').innerText = `${h}h ${m}m`; const efficiency = Math.min((avgVal / 6) * 100, 100).toFixed(0);
+            const badge = document.getElementById('stat-eff-badge'); badge.style.display = 'inline-block'; badge.innerText = `${efficiency}%`;
+            if(avgVal >= 5.5) { badge.style.backgroundColor = 'rgba(16, 185, 129, 0.1)'; badge.style.color = 'var(--success)'; } else if (avgVal >= 4) { badge.style.backgroundColor = 'rgba(245, 158, 11, 0.1)'; badge.style.color = 'var(--warning)'; } else { badge.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'; badge.style.color = 'var(--danger)'; }
+        } else { document.getElementById('stat-avg').innerText = "--"; document.getElementById('stat-eff-badge').style.display = 'none'; }
+    }
+
+    window.openAnalytics = function() { window.openModal('analyticsModal'); window.updateAnalyticsData(); }
+
+    window.updateAnalyticsData = function() {
+        const completed = db.filter(r => r.status === 'Done' || r.status === 'Charging Complete');
+        const active = db.filter(r => r.status !== 'Done' && r.status !== 'Charging Complete' && r.status !== 'Active In AMR');
+        const nowMs = Date.now();
+
+        let totalHours = 0; let prematureSwaps = 0;
+        const batteryStats = {'Battery-1':{c:0, h:0}, 'Battery-2':{c:0, h:0}, 'Battery-3':{c:0, h:0}, 'Battery-4':{c:0, h:0}, 'Battery-5':{c:0, h:0}, 'Battery-6':{c:0, h:0}};
+
+        completed.forEach(r => {
+            totalHours += (r.durationVal || 0);
+            if ((r.durationVal || 0) < 4) prematureSwaps++;
+            if(r.area && batteryStats[r.area] !== undefined) { batteryStats[r.area].c++; batteryStats[r.area].h += (r.durationVal || 0); }
+        });
+
+        const efficiency = completed.length > 0 ? Math.min((totalHours / (completed.length * 6)) * 100, 100).toFixed(1) : 0.0;
+        const errorRate = completed.length > 0 ? ((prematureSwaps / completed.length) * 100).toFixed(1) : 0.0;
+        const totalKwh = completed.length * powerSettings.capacity;
+
+        document.getElementById('kpi-eff').innerText = efficiency + '%'; document.getElementById('kpi-hours').innerText = Math.floor(totalHours) + 'h';
+        document.getElementById('kpi-error').innerText = errorRate + '%'; document.getElementById('kpi-energy').innerText = totalKwh.toLocaleString() + ' kWh';
+
+        const depletionStats = computeBatteryDepletion(completed);
+        const vStats = computeVehicleRuntime(completed, active, nowMs);
+        const vListEl = document.getElementById('vehicleRuntimeList');
+        if(vListEl) {
+            vListEl.innerHTML = VEHICLES.map(v => {
+                const s = vStats[v]; const hrs = s.totalRuntime / 3600000;
+                const liveBadge = s.isLive ? `<span style="font-size:0.65rem; background:rgba(16, 185, 129, 0.15); color:var(--success); padding:2px 6px; border-radius:10px; margin-left:5px;"><i class="fa-solid fa-circle fa-fade" style="font-size:0.4rem; vertical-align:middle;"></i> Active</span>` : '';
+                return `<div style="background:var(--input-bg); padding:10px; border-radius:8px; border:1px solid var(--border-color); text-align:center;">
+                    <div style="font-weight:800; color:var(--text-main); font-size:1rem;">${v} ${liveBadge}</div>
+                    <div style="font-size:1.2rem; font-weight:800; color:var(--primary-light); margin:4px 0;">${hrs.toFixed(1)} <span style="font-size:0.7rem; color:var(--text-sub); font-weight:600;">Hours</span></div>
+                    <div style="font-size:0.75rem; color:var(--text-sub);"><i class="fa-solid fa-rotate"></i> ${s.cycles} Total Swaps</div>
+                </div>`;
+            }).join('');
+        }
+
+        const healthList = document.getElementById('batteryHealthList');
+        healthList.innerHTML = Object.entries(batteryStats).map(([bat, data]) => {
+            let avgHrs = data.c > 0 ? (data.h / data.c) : 0; let warn = data.c > 50 ? `<i class="fa-solid fa-wrench" style="color:var(--warning);" title="Maintenance"></i>` : ''; let degradeWarn = avgHrs > 6.5 ? `<br><span style="color:var(--danger); font-size:0.65rem;">⚠️ Degrading (${avgHrs.toFixed(1)}h avg)</span>` : '';
+            const dep = depletionStats[bat] || { removals: 0, totalRuntime: 0 }; const avgRuntime = dep.removals > 0 ? (dep.totalRuntime / dep.removals) : 0; const rh = Math.floor(avgRuntime); const rm = Math.round((avgRuntime - rh) * 60); const fullCycle = avgHrs + avgRuntime;
+            const runtimeText = dep.removals > 0 ? `<br><span style="font-size:0.62rem; color:var(--primary-light);"><i class="fa-solid fa-rotate"></i> Removed ${dep.removals}x &middot; Runs ~${rh}h ${rm}m &middot; Cycle ~${fullCycle.toFixed(1)}h</span>` : `<br><span style="font-size:0.62rem; color:var(--text-sub);">No removal cycles yet</span>`;
+            return `<li class="list-group-item" style="flex-direction:column; align-items:flex-start; padding:6px;"><div style="display:flex; justify-content:space-between; width:100%;"><span>${bat} ${warn}</span> <b>${data.c} Cycles</b></div>${degradeWarn}${runtimeText}</li>`;
+        }).join('');
+
+        const leaderboardEl = document.getElementById('depletionLeaderboard');
+        if (leaderboardEl) {
+            const depletionEntries = Object.entries(depletionStats).filter(([, v]) => v.removals > 0).map(([bat, v]) => [bat, v.totalRuntime / v.removals]);
+            if (depletionEntries.length >= 2) {
+                depletionEntries.sort((a, b) => a[1] - b[1]);
+                const worst = depletionEntries[0]; const best = depletionEntries[depletionEntries.length - 1];
+                leaderboardEl.innerHTML = `<div style="display:flex; justify-content:space-between; padding-top:4px; border-top:1px dashed var(--border-color); font-size:0.65rem;"><span style="color:var(--danger);"><i class="fa-solid fa-arrow-trend-down"></i> Depletes fastest: <b>${worst[0]}</b> (${worst[1].toFixed(1)}h)</span><span style="color:var(--success);"><i class="fa-solid fa-arrow-trend-up"></i> Lasts longest: <b>${best[0]}</b> (${best[1].toFixed(1)}h)</span></div>`;
+            } else { leaderboardEl.innerHTML = `<div style="padding-top:4px; border-top:1px dashed var(--border-color); font-size:0.65rem; color:var(--text-sub); text-align:center;">Not enough removal-cycle data yet.</div>`; }
+        }
+
+        const alertList = document.getElementById('alertList');
+        if (prematureSwaps === 0) { alertList.innerHTML = '<div style="text-align:center; color:var(--success); font-weight:600; padding:10px;"><i class="fa-solid fa-circle-check"></i> No Critical Errors</div>'; } 
+        else {
+            const shortItems = completed.filter(r => (r.durationVal || 0) < 4 && r.durationVal !== undefined);
+            alertList.innerHTML = shortItems.map(r => `<div style="font-size:0.75rem; color:var(--text-main); margin-bottom:4px; padding-bottom:4px; border-bottom:1px solid var(--border-color);"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);"></i> <b>${r.toAmr || r.vehicle || 'Unk'}</b> early at <b>${r.duration || 'N/A'}</b></div>`).join('');
+        }
+        window.renderCharts(completed, depletionStats);
+    }
+
+    window.renderCharts = function(completed, depletionStats) {
+        Chart.defaults.color = isDark ? '#94a3b8' : '#64748b'; Chart.defaults.font.family = "'Outfit', sans-serif";
+        const destroyChart = (id) => { if(charts[id]) charts[id].destroy(); };
+
+        destroyChart('vehicleChart'); const vehicles = {'Chera':0, 'Chola':0, 'Pandya':0};
+        completed.forEach(r => { const v = r.toAmr || r.vehicle; if(v && vehicles[v]!==undefined) vehicles[v]++; });
+        charts['vehicleChart'] = new Chart(document.getElementById('vehicleChart'), { type: 'bar', data: { labels: Object.keys(vehicles), datasets: [{ data: Object.values(vehicles), backgroundColor: '#6366f1', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } } });
+
+        destroyChart('peakTimeChart'); const hours = Array(24).fill(0);
+        completed.forEach(r => { if(r.endTime) { let parts = r.endTime.split(':'); if(parts.length < 2) return; let h = parseInt(parts[0]); if(r.endTime.toUpperCase().includes('PM') && h !== 12) h += 12; if(r.endTime.toUpperCase().includes('AM') && h === 12) h = 0; if(!isNaN(h) && h >= 0 && h < 24) hours[h]++; } });
+        charts['peakTimeChart'] = new Chart(document.getElementById('peakTimeChart'), { type: 'line', data: { labels: Array.from({length:24}, (_,i)=>i+':00'), datasets: [{ data: hours, borderColor: '#06b6d4', tension: 0.3, fill: true, backgroundColor: 'rgba(6, 182, 212, 0.1)' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } } });
+
+        destroyChart('batteryUsageChart'); const bat = {'Battery-1':0, 'Battery-2':0, 'Battery-3':0, 'Battery-4':0, 'Battery-5':0, 'Battery-6':0};
+        completed.forEach(r => { if(r.area && bat[r.area]!==undefined) bat[r.area]++; });
+        charts['batteryUsageChart'] = new Chart(document.getElementById('batteryUsageChart'), { type: 'bar', data: { labels: ['B1','B2','B3','B4','B5','B6'], datasets: [{ data: Object.values(bat), backgroundColor: '#10b981', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } } });
+
+        destroyChart('depletionChart');
+        const depStats = depletionStats || computeBatteryDepletion(completed); const depletionAvgs = AREAS.map(a => { const d = depStats[a]; return d && d.removals > 0 ? +(d.totalRuntime / d.removals).toFixed(2) : 0; }); const depletionCounts = AREAS.map(a => { const d = depStats[a]; return d ? d.removals : 0; });
+        charts['depletionChart'] = new Chart(document.getElementById('depletionChart'), { type: 'bar', data: { labels: AREAS.map(a => a.replace('Battery-', 'B')), datasets: [{ label: 'Avg Hours in AMR', data: depletionAvgs, backgroundColor: '#f59e0b', borderRadius: 4 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => `${ctx.parsed.x.toFixed(1)}h avg runtime over ${depletionCounts[ctx.dataIndex]} removals` } } }, scales: { x: { beginAtZero: true, ticks: { font: { size: 9 } } }, y: { ticks: { font: { size: 9 } } } } } });
+    }
+
+    window.openModal = function(id) { const m = document.getElementById(id); m.style.display = 'flex'; setTimeout(() => m.classList.add('open'), 10); }
+    window.closeModal = function(id) { const m = document.getElementById(id); m.classList.remove('open'); setTimeout(() => m.style.display = 'none', 300); }
+    window.deleteAllData = async function() { const snapshot = await getDocs(logsCollection); const batch = writeBatch(firestoreDb); snapshot.docs.forEach((d) => batch.delete(d.ref)); await batch.commit(); window.showToast("All data wiped.", "warning"); window.closeModal('deleteModal'); }
+    window.exportCSV = function() {
+        let csv = "Date,Shift,Batch,Battery Area,Start,StartID,FromAMR,End,SwapShift,SwapID,ToAMR,SwapBatch,Duration\n";
+        db.forEach(r => csv += `${r.date||''},${r.shift||''},${r.batch||''},${r.area||''},${r.startTime||''},${r.startId||''},${r.fromAmr||r.vehicle||''},${r.endTime||''},${r.endShift||''},${r.endId||''},${r.toAmr||r.vehicle||''},${r.endBatch||''},${r.duration||''}\n`);
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'Battery_Data.csv'; a.click(); window.showToast("CSV Exported successfully!");
+    }
+</script>
+</body>
+</html>

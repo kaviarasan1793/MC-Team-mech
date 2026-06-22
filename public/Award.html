@@ -264,26 +264,19 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-        import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
 
-        // ==========================================
-        // ⚠️ PASTE YOUR FIREBASE CONFIGURATION HERE 
-        // ==========================================
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_AUTH_DOMAIN",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_STORAGE_BUCKET",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID"
+          apiKey: "AIzaSyAiZl9YhGsfKIKTTK5hMqqhWoIiYbri9rI",
+          authDomain: "material-controler.firebaseapp.com",
+          projectId: "material-controler",
+          storageBucket: "material-controler.firebasestorage.app",
+          messagingSenderId: "782401252699",
+          appId: "1:782401252699:web:19d6775e92c428c224fe7e"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const storage = getStorage(app);
 
-        // Global App Variables
         let employeeData = [];
         let filteredData = []; 
         let slideIndex = 0;
@@ -295,11 +288,8 @@
         document.addEventListener('DOMContentLoaded', () => {
             initMonthDropdown();
             slideshowModal = new bootstrap.Modal(document.getElementById('slideshowModal'));
-            
-            // Listen to Firestore for Real-Time Updates
             loadData();
 
-            // Search Listener
             document.getElementById('searchInput').addEventListener('input', (e) => {
                 const term = e.target.value.toLowerCase();
                 filteredData = employeeData.filter(emp => 
@@ -308,7 +298,6 @@
                 renderGallery(filteredData);
             });
 
-            // Keyboard navigation for Slideshow
             document.addEventListener('keydown', (e) => {
                 if (!document.getElementById('slideshowModal').classList.contains('show')) return;
                 if (e.key === 'ArrowRight') {
@@ -327,19 +316,15 @@
             });
         });
 
-        // --- FIREBASE DATA LOGIC ---
         function loadData() {
-            // Real-time listener for the 'employees' collection
             onSnapshot(collection(db, "employees"), (snapshot) => {
                 employeeData = [];
                 snapshot.forEach((doc) => {
                     employeeData.push({ id: doc.id, ...doc.data() });
                 });
                 
-                // Sort by creation time (descending)
                 employeeData.sort((a, b) => b.createdAt - a.createdAt);
                 
-                // Keep the current search filter active after updates
                 const term = document.getElementById('searchInput').value.toLowerCase();
                 filteredData = employeeData.filter(emp => 
                     emp.name.toLowerCase().includes(term) || emp.batch.toLowerCase().includes(term)
@@ -360,7 +345,6 @@
             }
         };
 
-        // --- FORM & EDIT ---
         window.editWinner = function(id) {
             const emp = employeeData.find(e => e.id === id);
             if(!emp) return;
@@ -369,13 +353,13 @@
             document.getElementById('awardedName').value = emp.name;
             document.getElementById('batch').value = emp.batch;
             document.getElementById('awardMonth').value = emp.month;
-            existingImage = emp.imageUrl; // Store the current Firebase URL
+            existingImage = emp.imageUrl; 
             
             const btn = document.getElementById('submitBtn');
             btn.innerHTML = '<i class="fas fa-save me-2"></i> UPDATE';
             btn.classList.add('btn-update');
             document.getElementById('cancelEditBtn').style.display = 'inline-block';
-            document.getElementById('chooseFile').required = false; // Image not required for editing
+            document.getElementById('chooseFile').required = false; 
             window.scrollTo({ top: 0, behavior: 'smooth' });
         };
 
@@ -392,6 +376,28 @@
             document.getElementById('chooseFile').required = true;
         }
 
+        // Image compression function updated for high quality
+        function compressImage(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 1000; // Updated to 1000 for better clarity
+                        const scaleSize = MAX_WIDTH / img.width;
+                        canvas.width = MAX_WIDTH;
+                        canvas.height = img.height * scaleSize;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.85)); // Updated to 85% quality
+                    };
+                };
+            });
+        }
+
         document.getElementById('awardForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const fileInput = document.getElementById('chooseFile');
@@ -399,21 +405,14 @@
             const btn = document.getElementById('submitBtn');
             const originalBtnHtml = btn.innerHTML;
             
-            // Show loading state
             btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> UPLOADING...';
             btn.disabled = true;
 
             try {
                 let finalImageUrl = existingImage;
 
-                // If a new file is selected, upload it to Storage
                 if (fileInput.files && fileInput.files[0]) {
-                    const file = fileInput.files[0];
-                    const fileName = `${Date.now()}_${file.name}`;
-                    const storageRef = ref(storage, `employee_awards/${fileName}`);
-                    
-                    const uploadTask = await uploadBytesResumable(storageRef, file);
-                    finalImageUrl = await getDownloadURL(storageRef);
+                    finalImageUrl = await compressImage(fileInput.files[0]);
                 }
 
                 const record = {
@@ -424,10 +423,8 @@
                 };
 
                 if (editId) {
-                    // Update existing Firestore document
                     await updateDoc(doc(db, "employees", editId), record);
                 } else {
-                    // Add new Firestore document
                     record.createdAt = Date.now();
                     await addDoc(collection(db, "employees"), record);
                 }
@@ -453,7 +450,6 @@
             data.forEach((emp) => {
                 const col = document.createElement('div');
                 col.className = 'col-md-6 col-lg-3';
-                // Notice the string quotes added around emp.id in the onclick handlers
                 col.innerHTML = `
                     <div class="employee-card-wrapper">
                         <div class="action-btn-group">
@@ -475,7 +471,6 @@
             });
         }
 
-        // --- SLIDESHOW (Exported to window scope so HTML can call it) ---
         window.startSlideshow = function(startId = null) {
             if(filteredData.length === 0) return;
             slideIndex = startId ? filteredData.findIndex(e => e.id === startId) : 0;
@@ -510,7 +505,7 @@
             const img = document.getElementById('slideImage');
             img.style.opacity = 0;
             setTimeout(() => {
-                img.src = emp.imageUrl; // Replaced base64 with Firebase URL
+                img.src = emp.imageUrl; 
                 document.getElementById('slideName').textContent = emp.name;
                 document.getElementById('slideBatch').textContent = emp.batch.replace('Batch ', '');
                 document.getElementById('slideMonth').textContent = emp.month;
@@ -518,14 +513,13 @@
             }, 100);
         }
 
-        // DOWNLOAD
         window.downloadSlide = function() {
             clearInterval(slideInterval);
             const element = document.querySelector('.modal-content');
             const dlBtn = document.querySelector('.download-btn');
             if(dlBtn) dlBtn.style.display = 'none';
             
-            html2canvas(element, { useCORS: true, backgroundColor: '#000428', scale: 2 }).then(canvas => {
+            html2canvas(element, { backgroundColor: '#000428', scale: 2 }).then(canvas => {
                 const link = document.createElement('a');
                 link.download = `Winner-${document.getElementById('slideName').textContent}.png`;
                 link.href = canvas.toDataURL();
@@ -533,7 +527,7 @@
                 if(dlBtn) dlBtn.style.display = 'flex';
                 resetInterval();
             }).catch(err => {
-                console.error("Canvas export failed due to cross-origin issues with Firebase storage images.", err);
+                console.error("Canvas export failed:", err);
                 if(dlBtn) dlBtn.style.display = 'flex';
                 resetInterval();
             });

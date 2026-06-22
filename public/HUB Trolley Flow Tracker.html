@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trolley Follow Tracker</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.bootstrap5.min.css">
+
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.bootstrap5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        
+        body { background-color: #f4f7fb; font-family: 'Plus Jakarta Sans', sans-serif; color: #1e293b; overflow-x: hidden; padding-top: 10px; }
+        
+        /* Ultra Compact Header & Single Line UI */
+        .header-kpi-bar { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #fff; padding: 8px 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: nowrap; }
+        .header-kpi-bar h4 { font-weight: 800; margin: 0; font-size: 1.1rem; letter-spacing: 0.5px; white-space: nowrap;}
+        
+        .inline-kpi-group { display: flex; gap: 10px; align-items: center; }
+        .kpi-badge { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
+        .kpi-badge span { font-size: 1rem; color: #38bdf8; margin-left: 5px; font-weight: 800; }
+        .kpi-badge.danger span { color: #fb7185; }
+
+        /* Single Line Controls */
+        .single-line-controls { display: flex; flex-wrap: nowrap; gap: 8px; align-items: center; background: #fff; padding: 6px 12px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); margin-bottom: 10px; border: 1px solid #e2e8f0; overflow-x: auto; }
+        .single-line-controls::-webkit-scrollbar { height: 4px; }
+        .single-line-controls::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        
+        .ctrl-group { display: flex; align-items: center; white-space: nowrap; }
+        .ctrl-lbl { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: #64748b; margin-right: 4px; }
+        .ctrl-input { height: 26px; padding: 2px 6px; font-size: 0.75rem; font-weight: 700; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc; }
+        .ctrl-input:focus { outline: none; border-color: #3b82f6; }
+        .ctrl-divider { width: 1px; height: 20px; background: #cbd5e1; margin: 0 4px; }
+
+        /* Charts & Table Layout */
+        .chart-box { background: #fff; border-radius: 8px; padding: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; height: 100%; }
+        .panel-title { font-size: 0.8rem; font-weight: 800; color: #1e293b; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;}
+        .chart-container { position: relative; height: 350px; width: 100%; } 
+        
+        .table-custom-header th { background-color: #f8fafc; color: #475569; font-weight: 800; text-transform: uppercase; font-size: 0.65rem; padding: 6px !important; border-bottom: 2px solid #e2e8f0 !important;}
+        .table td { padding: 6px !important; vertical-align: middle; font-size: 0.75rem;}
+
+        .delay-bar-container { width: 100%; background-color: #f1f5f9; border-radius: 10px; height: 4px; margin-top: 3px; overflow: hidden; }
+        .delay-bar { height: 100%; border-radius: 10px; transition: width 0.5s ease; }
+        .badge-optimal { background-color: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 0.6rem; text-transform: uppercase; }
+        .badge-critical { background-color: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 0.6rem; text-transform: uppercase; }
+
+        .btn-tiny { font-size: 0.65rem; font-weight: 800; padding: 2px 8px; border-radius: 4px; background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; text-transform: uppercase; }
+        .btn-tiny:hover { background: #3b82f6; color: #fff; }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid px-2">
+    
+    <div class="header-kpi-bar">
+        <h4><i class="fas fa-dolly-flatbed text-info me-2"></i> Trolley Follow Tracker</h4>
+        <div class="inline-kpi-group" id="kpiStrip" style="display: none;">
+            <div class="kpi-badge">Total <span id="kpiTotal">0</span></div>
+            <div class="kpi-badge">Target <span id="kpiTargetHour" style="color:#a7f3d0;">0</span></div>
+            <div class="kpi-badge">Delay <span id="kpiAvgDelay" style="color:#fde047;">0m</span></div>
+            <div class="kpi-badge danger">Breach <span id="kpiBreached">0</span></div>
+        </div>
+    </div>
+
+    <div class="single-line-controls">
+        <div class="ctrl-group">
+            <span class="ctrl-lbl"><i class="fas fa-sliders-h me-1"></i>AMR</span>
+            <input type="number" id="simAmrCount" value="3" min="1" class="ctrl-input" style="width: 45px;">
+        </div>
+        <div class="ctrl-group">
+            <span class="ctrl-lbl">Cyc(m)</span>
+            <input type="number" id="simCycleTime" value="20" min="1" class="ctrl-input" style="width: 45px;">
+        </div>
+        <div class="ctrl-group">
+            <span class="ctrl-lbl">Tr/AMR</span>
+            <input type="number" id="simTrolleys" value="4" min="1" class="ctrl-input" style="width: 45px;">
+        </div>
+        <div class="ctrl-group">
+            <span class="ctrl-lbl text-danger">SLA(m)</span>
+            <input type="number" id="simSla" value="30" min="1" class="ctrl-input" style="width: 45px;">
+        </div>
+        
+        <div class="ctrl-divider"></div>
+        
+        <div class="ctrl-group">
+            <span class="ctrl-lbl"><i class="fas fa-file-csv me-1"></i>Data</span>
+            <input type="file" id="csvFile" accept=".csv" class="ctrl-input" style="width: 170px;">
+        </div>
+        <div class="ctrl-group">
+            <select class="ctrl-input" id="dateSelect" disabled style="width: 100px;">
+                <option value="ALL">Wait...</option>
+            </select>
+        </div>
+        <div class="ctrl-group">
+            <select class="ctrl-input" id="shiftSelect" disabled style="width: 80px;">
+                <option value="ALL">All Shifts</option>
+                <option value="A">Shift A</option>
+                <option value="B">Shift B</option>
+                <option value="C">Shift C</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="dashboardArea" style="display: none;">
+        <div class="row g-2 mb-2">
+            <div class="col-lg-8">
+                <div class="chart-box">
+                    <div class="panel-title">
+                        <span><i class="fas fa-wave-square text-primary me-2"></i> Live Timing Waveform <span id="chartShiftIndicator" class="badge bg-secondary ms-2" style="font-size:0.6rem;"></span></span>
+                        <button id="resetZoomBtn" class="btn-tiny"><i class="fas fa-compress-arrows-alt me-1"></i>Reset Zoom</button>
+                    </div>
+                    <div class="chart-container"><canvas id="waveChart"></canvas></div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="chart-box">
+                    <div class="panel-title"><i class="fas fa-list-ol text-warning me-2"></i> Hourly Performance</div>
+                    <div class="table-responsive" style="height: 350px; overflow-y: auto;">
+                        <table class="table table-hover text-center align-middle mb-0">
+                            <thead class="table-custom-header sticky-top">
+                                <tr><th>Time Range</th><th>Tgt</th><th>Act</th><th>Status</th></tr>
+                            </thead>
+                            <tbody id="hourlyTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-box">
+            <div class="panel-title"><i class="fas fa-table text-info me-2"></i> Smart Operations Log</div>
+            <table id="trolleyTable" class="table table-hover align-middle w-100">
+                <thead class="table-custom-header">
+                    <tr>
+                        <th>Trolley ID</th><th>Generated IN</th><th>Confirmed OUT</th>
+                        <th style="width: 15%;">Process Time</th><th>Status</th><th>Shift</th><th>Products</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Register ChartDataLabels plugin globally
+    Chart.register(ChartDataLabels);
+
+    let globalRawData = []; 
+    let mainChartInstance, dataTableInstance;
+
+    function parseDateCustom(dateStr) {
+        if(!dateStr) return null;
+        let parts = dateStr.trim().split(/[\s]+/);
+        let dPart = parts[0];
+        let tPart = parts.length > 1 ? parts[1] : "00:00:00";
+        if (dPart.includes('/')) {
+            let split = dPart.split('/');
+            let year = parseInt(split[2]) < 100 ? parseInt(split[2]) + 2000 : parseInt(split[2]);
+            return new Date(`${split[1]}/${split[0]}/${year} ${tPart}`);
+        }
+        return new Date(dateStr);
+    }
+
+    function get15MinBucket(dateObj) {
+        if(!dateObj || isNaN(dateObj.getTime())) return null;
+        const bucketMs = 15 * 60 * 1000;
+        return Math.floor(dateObj.getTime() / bucketMs) * bucketMs;
+    }
+
+    function formatTimeWindow(d) {
+        return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+    }
+
+    document.getElementById('csvFile').addEventListener('change', function(e) {
+        let file = e.target.files[0];
+        if(!file) return;
+
+        Papa.parse(file, {
+            header: true, skipEmptyLines: true,
+            transformHeader: function(h) { return h.trim(); },
+            complete: function(results) {
+                globalRawData = results.data.filter(r => r["Trolley#"] && r["Generated Time"]);
+                
+                let dates = new Set();
+                globalRawData.forEach(r => {
+                    let dMatch = r["Generated Time"].trim().split(" ")[0];
+                    if(dMatch) dates.add(dMatch);
+                });
+
+                let dateSelect = document.getElementById('dateSelect');
+                dateSelect.innerHTML = '<option value="ALL">All Dates</option>';
+                Array.from(dates).sort().forEach(d => { dateSelect.innerHTML += `<option value="${d}">${d}</option>`; });
+
+                dateSelect.disabled = false;
+                document.getElementById('shiftSelect').disabled = false;
+                updateDashboard();
+            }
+        });
+    });
+
+    document.querySelectorAll('.ctrl-input').forEach(el => {
+        el.addEventListener('change', updateDashboard);
+        if(el.type === 'number') el.addEventListener('keyup', updateDashboard); 
+    });
+
+    document.getElementById('resetZoomBtn').addEventListener('click', function() {
+        if (mainChartInstance) mainChartInstance.resetZoom();
+    });
+
+    function updateDashboard() {
+        if(globalRawData.length === 0) return;
+
+        let dSel = document.getElementById("dateSelect").value;
+        let sSel = document.getElementById("shiftSelect").value;
+        
+        let amrCount = parseInt(document.getElementById("simAmrCount").value) || 0;
+        let cycleTime = parseInt(document.getElementById("simCycleTime").value) || 1; 
+        let trolleysPerAmr = parseInt(document.getElementById("simTrolleys").value) || 0;
+        let slaLimit = parseInt(document.getElementById("simSla").value) || 30;
+
+        let expectedPerHour = Math.round(amrCount * (60 / cycleTime) * trolleysPerAmr);
+        let expectedPer15Min = parseFloat((expectedPerHour / 4).toFixed(1));
+
+        document.getElementById("kpiTargetHour").innerText = expectedPerHour;
+
+        let trolleyMap = new Map();
+
+        globalRawData.forEach(r => {
+            let rShift = r.Shift ? r.Shift.trim().toUpperCase() : "";
+            let rDate = r["Generated Time"] ? r["Generated Time"].trim().split(" ")[0] : "";
+            
+            if((sSel === "ALL" || rShift === sSel) && (dSel === "ALL" || rDate === dSel)) {
+                
+                let tNo = r["Trolley#"].trim();
+                let genD = parseDateCustom(r["Generated Time"]);
+                let confD = parseDateCustom(r["Confirmed Time"]);
+                
+                // SINGLE COUNT LOGIC
+                let tripKey = tNo + "_" + r["Generated Time"].trim(); 
+
+                if(!trolleyMap.has(tripKey)) {
+                    trolleyMap.set(tripKey, { 
+                        tNo: tNo, shift: rShift, minGen: genD, maxConf: confD, 
+                        rGen: r["Generated Time"], rConf: r["Confirmed Time"] || "N/A", 
+                        products: new Set([r.Product]) 
+                    });
+                } else {
+                    let ex = trolleyMap.get(tripKey);
+                    if(r.Product) ex.products.add(r.Product);
+                    if(confD && (!ex.maxConf || confD > ex.maxConf)) { ex.maxConf = confD; ex.rConf = r["Confirmed Time"]; }
+                }
+            }
+        });
+
+        let finalData = Array.from(trolleyMap.values());
+        
+        if(finalData.length === 0) {
+            document.getElementById("dashboardArea").style.display = "none";
+            document.getElementById("kpiStrip").style.display = "none";
+            return;
+        }
+
+        document.getElementById("dashboardArea").style.display = "block";
+        document.getElementById("kpiStrip").style.display = "flex";
+        renderVisuals(finalData, expectedPerHour, expectedPer15Min, slaLimit, sSel);
+    }
+
+    function renderVisuals(data, expectedPerHour, expectedPer15Min, slaLimit, currentShiftFilter) {
+        let totalDelay = 0, breachedCount = 0;
+        let intervals = {}; 
+        let hourlyTracker = {};
+        let tableRows = [];
+        let shiftStartTime = null;
+
+        data.forEach(r => {
+            if (r.minGen) { if (!shiftStartTime || r.minGen < shiftStartTime) shiftStartTime = r.minGen; }
+        });
+
+        data.forEach(r => {
+            let delayMins = 0;
+            if (r.minGen && r.maxConf) {
+                delayMins = Math.max(0, Math.round((r.maxConf - r.minGen) / 60000));
+                totalDelay += delayMins;
+                if(delayMins > slaLimit) breachedCount++;
+            }
+
+            let bucketTs = get15MinBucket(r.minGen);
+            let s = r.shift || 'UNKNOWN';
+
+            if(bucketTs !== null) {
+                if(!intervals[bucketTs]) intervals[bucketTs] = { 'A':0, 'B':0, 'C':0, 'OTHER':0, delaySum: 0, delayCount: 0 };
+                if(intervals[bucketTs][s] !== undefined) intervals[bucketTs][s]++; else intervals[bucketTs]['OTHER']++;
+                intervals[bucketTs].delaySum += delayMins;
+                intervals[bucketTs].delayCount += 1;
+            }
+
+            if (r.minGen && shiftStartTime) {
+                let diffMs = r.minGen.getTime() - shiftStartTime.getTime();
+                let hourIndex = Math.floor(diffMs / (1000 * 60 * 60)) + 1;
+                
+                if (!hourlyTracker[hourIndex]) {
+                    let sTime = new Date(shiftStartTime.getTime() + (hourIndex - 1) * 3600000);
+                    let eTime = new Date(shiftStartTime.getTime() + hourIndex * 3600000);
+                    hourlyTracker[hourIndex] = {
+                        count: 0,
+                        timeLabel: `Hr ${hourIndex}<br><span class="text-muted" style="font-size:0.65rem;">${formatTimeWindow(sTime)}-${formatTimeWindow(eTime)}</span>`
+                    };
+                }
+                hourlyTracker[hourIndex].count++;
+            }
+
+            let hrs = Math.floor(delayMins / 60);
+            let mins = delayMins % 60;
+            let timeDisplay = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+
+            let isBreachedRow = delayMins > slaLimit;
+            let badge = isBreachedRow ? `<span class="badge-critical">Breach</span>` : `<span class="badge-optimal">Opt</span>`;
+            let pList = Array.from(r.products).join(", ");
+            pList = pList.length > 20 ? pList.substring(0, 20) + "..." : pList;
+
+            let barColor = isBreachedRow ? '#f43f5e' : '#3b82f6';
+            let barWidth = Math.min(100, (delayMins / (slaLimit * 1.5)) * 100); 
+            let timeCell = `<div class="fw-bold ${isBreachedRow ? 'text-danger' : 'text-dark'}">${timeDisplay}</div>
+                            <div class="delay-bar-container"><div class="delay-bar" style="width: ${barWidth}%; background-color: ${barColor};"></div></div>`;
+
+            let shiftBadgeColor = r.shift === 'A' ? 'bg-primary' : r.shift === 'B' ? 'bg-success' : r.shift === 'C' ? 'bg-warning text-dark' : 'bg-secondary';
+
+            tableRows.push([
+                `<strong class="text-primary">${r.tNo}</strong>`, `<span class="text-muted fw-bold">${r.rGen}</span>`, 
+                `<span class="text-muted fw-bold">${r.rConf}</span>`, timeCell, badge, 
+                `<span class="badge ${shiftBadgeColor} px-1 py-1">${r.shift}</span>`, `<small class="text-secondary fw-bold" title="${Array.from(r.products).join(', ')}">${pList}</small>`
+            ]);
+        });
+
+        let hourlyHtml = '';
+        let sortedHours = Object.keys(hourlyTracker).sort((a, b) => parseInt(a) - parseInt(b));
+        sortedHours.forEach(hour => {
+            let actual = hourlyTracker[hour].count;
+            let label = hourlyTracker[hour].timeLabel;
+            let st = actual > expectedPerHour ? '<span class="badge bg-danger">Over</span>' : (actual === expectedPerHour ? '<span class="badge bg-success">Met</span>' : `<span class="badge bg-warning text-dark">Low</span>`);
+            hourlyHtml += `<tr><td class="fw-bold text-secondary lh-sm">${label}</td><td class="fw-bold align-middle">${expectedPerHour}</td><td class="fw-bold align-middle ${actual > expectedPerHour ? 'text-danger' : 'text-success'}">${actual}</td><td class="align-middle">${st}</td></tr>`;
+        });
+        document.getElementById('hourlyTableBody').innerHTML = hourlyHtml || '<tr><td colspan="4" class="text-muted">No Data</td></tr>';
+
+        // Update KPIs
+        let avgD = data.length > 0 ? Math.round(totalDelay / data.length) : 0;
+        document.getElementById("kpiTotal").innerText = data.length;
+        document.getElementById("kpiBreached").innerText = breachedCount;
+        document.getElementById("kpiAvgDelay").innerText = `${avgD}m`;
+
+        document.getElementById("chartShiftIndicator").innerText = currentShiftFilter === "ALL" ? "[All Shifts]" : `[Shift ${currentShiftFilter}]`;
+
+        let bucketKeys = Object.keys(intervals).map(Number);
+
+        if (bucketKeys.length === 0) {
+            if (mainChartInstance) { mainChartInstance.destroy(); mainChartInstance = null; }
+        } else {
+            const stepMs = 15 * 60 * 1000;
+            let minB = Math.min(...bucketKeys);
+            let maxB = Math.max(...bucketKeys);
+            let labels = [];
+            for (let t = minB; t <= maxB; t += stepMs) {
+                labels.push(t);
+                if (!intervals[t]) intervals[t] = { 'A': 0, 'B': 0, 'C': 0, 'OTHER': 0, delaySum: 0, delayCount: 0 };
+            }
+
+            let ctx = document.getElementById('waveChart').getContext('2d');
+            let datasets = [];
+
+            // Green & Red color setup
+            let colorGreen = '#10b981';
+            let colorRed = '#ef4444';
+
+            // Calculate Volume array
+            let volumeData = labels.map(l => {
+                if(currentShiftFilter === "ALL") return intervals[l]['A'] + intervals[l]['B'] + intervals[l]['C'] + intervals[l]['OTHER'];
+                return intervals[l][currentShiftFilter];
+            });
+
+            // DATALABELS Config: Number strictly on top, color matches status
+            let dataLabelConfig = {
+                display: function(context) { return context.dataset.data[context.dataIndex] > 0; },
+                color: ctx => ctx.dataset.data[ctx.dataIndex] > expectedPer15Min ? colorRed : colorGreen,
+                align: 'top',
+                anchor: 'end',
+                offset: 2,
+                font: { weight: '900', size: 12, family: 'Plus Jakarta Sans' },
+                formatter: function(value) { return value; } 
+            };
+
+            // Main Waveform Dataset (Green / Red segmented)
+            datasets.push({
+                type: 'line', 
+                label: `Actual Trolleys`, 
+                data: volumeData,
+                borderColor: colorGreen, // Default is Green
+                borderWidth: 3, 
+                fill: false, 
+                tension: 0.35,
+                pointRadius: 4, 
+                pointHoverRadius: 7, 
+                
+                // Point color logic (Green if normal, Red if above target)
+                pointBackgroundColor: ctx => ctx.raw > expectedPer15Min ? colorRed : colorGreen,
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                
+                // Segment logic: Line becomes red if it crosses the target
+                segment: {
+                    borderColor: ctx => (ctx.p0.parsed.y > expectedPer15Min || ctx.p1.parsed.y > expectedPer15Min) ? colorRed : colorGreen
+                },
+                
+                datalabels: dataLabelConfig
+            });
+
+            // Target Line (Hidden from numbers)
+            datasets.push({
+                type: 'line', 
+                label: 'Target Line', 
+                data: labels.map(() => expectedPer15Min),
+                borderColor: '#f59e0b', 
+                borderWidth: 2, 
+                borderDash: [5, 5], 
+                fill: false, 
+                pointRadius: 0,
+                datalabels: { display: false } 
+            });
+
+            if (mainChartInstance) mainChartInstance.destroy();
+
+            mainChartInstance = new Chart(ctx, {
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    layout: { padding: { top: 25 } }, // Make room for numbers on top
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top', labels: { font: { weight: 'bold', size: 11 }, usePointStyle: true, boxWidth: 10 } },
+                        tooltip: {
+                            padding: 10, titleFont: { size: 12 }, bodyFont: { size: 12 },
+                            callbacks: { title: items => luxon.DateTime.fromMillis(items[0].parsed.x).toFormat('HH:mm') }
+                        },
+                        zoom: {
+                            pan: { enabled: true, mode: 'x' },
+                            zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { borderDash: [4, 4] }, ticks: { display: false } },
+                        x: { type: 'time', time: { tooltipFormat: 'HH:mm', displayFormats: { minute: 'HH:mm', hour: 'HH:mm' } }, grid: { display: false }, ticks: { maxRotation: 0, font: { size: 10, weight: '600' } } }
+                    }
+                }
+            });
+        }
+
+        if (dataTableInstance) dataTableInstance.destroy();
+        dataTableInstance = $('#trolleyTable').DataTable({
+            data: tableRows, pageLength: 5, order: [[1, 'asc']],
+            dom: '<"d-flex justify-content-between align-items-center mb-2"Bf>rtip',
+            buttons: [{ extend: 'excelHtml5', text: '<i class="fas fa-file-excel me-1"></i> Excel', className: 'btn-tiny' }],
+            responsive: true,
+            language: { search: "", searchPlaceholder: "Search ID..." },
+            initComplete: function() { $('.dataTables_filter input').addClass('ctrl-input'); }
+        });
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chassis and PA Cover Buffer Tracking - v75</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;800;900&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        :root {
+            --bg: #f0f4f8; 
+            --card: #ffffff; 
+            --text: #0f172a; 
+            --text-dim: #64748b;
+            --border: #cbd5e1; 
+            --accent: #2563eb; 
+            --accent-glow: rgba(37, 99, 235, 0.2);
+            --in: #059669; 
+            --out: #e11d48; 
+            --panel: #f8fafc; 
+            --panel-alt: #f1f5f9; 
+            --mixed-color: #10b981; 
+            --low-alert: #f43f5e; 
+            
+            --btn-edit-bg: rgba(37, 99, 235, 0.1); 
+            --btn-edit-text: #2563eb;
+            --shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            --row-hover: rgba(37, 99, 235, 0.06);
+            --zone-in: rgba(5, 150, 105, 0.03); 
+            --zone-in-border: rgba(5, 150, 105, 0.25);
+            --zone-out: rgba(225, 29, 72, 0.03); 
+            --zone-out-border: rgba(225, 29, 72, 0.25);
+            
+            --fill-healthy: rgba(37, 99, 235, 0.15); 
+            --fill-critical: rgba(225, 29, 72, 0.15); 
+            --fill-light-green: rgba(52, 211, 153, 0.35); 
+            --fill-full: rgba(16, 185, 129, 0.45);        
+            
+            --input-bg: #ffffff;
+            
+            --hover-view-bg: rgba(255, 255, 255, 0.95); 
+            --hover-view-border: rgba(37, 99, 235, 0.5);
+            --hover-shadow: 0 8px 25px rgba(37, 99, 235, 0.2);
+            --text-hover-main: #0f172a; 
+            --text-hover-pn: #475569; 
+        }
+        [data-theme="moon"] {
+            --bg: #0b0f19; 
+            --card: #111827; 
+            --text: #f1f5f9; 
+            --text-dim: #94a3b8; 
+            --border: #1e293b; 
+            --accent: #06b6d4; 
+            --accent-glow: rgba(6, 182, 212, 0.25);
+            --in: #10b981; 
+            --out: #f43f5e; 
+            --panel: #1e293b; 
+            --panel-alt: #0f172a;
+            --mixed-color: #34d399; 
+            --low-alert: #fb7185;
+            
+            --btn-edit-bg: rgba(6, 182, 212, 0.15); 
+            --btn-edit-text: #22d3ee;
+            --shadow: 0 10px 30px rgba(0,0,0,0.5);
+            --row-hover: rgba(6, 182, 212, 0.08);
+            --zone-in: rgba(16, 185, 129, 0.05); 
+            --zone-in-border: rgba(16, 185, 129, 0.3);
+            --zone-out: rgba(244, 63, 94, 0.05); 
+            --zone-out-border: rgba(244, 63, 94, 0.3);
+            
+            --fill-healthy: rgba(6, 182, 212, 0.2); 
+            --fill-critical: rgba(251, 113, 133, 0.2);
+            --fill-light-green: rgba(52, 211, 153, 0.3); 
+            --fill-full: rgba(52, 211, 153, 0.5);        
+            
+            --input-bg: #0b0f19;
+            
+            --hover-view-bg: rgba(15, 23, 42, 0.95); 
+            --hover-view-border: rgba(6, 182, 212, 0.6);
+            --hover-shadow: 0 8px 30px rgba(6, 182, 212, 0.3);
+            --text-hover-main: #ffffff; 
+            --text-hover-pn: #cbd5e1;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease; }
+        
+        body { background: var(--bg); color: var(--text); padding: 12px 60px; line-height: 1.2; overflow-x: hidden; font-size: 11px; }
+
+        header { 
+            display: flex; justify-content: space-between; align-items: center; 
+            background: var(--card); padding: 10px 16px; border-radius: 10px; 
+            border: 1px solid var(--border); margin-bottom: 12px; box-shadow: var(--shadow);
+        }
+        .h-left { display: flex; align-items: center; gap: 12px; }
+        .h-left h1 { font-size: 16px; font-weight: 900; letter-spacing: 0.5px; color: var(--text); text-transform: uppercase; }
+        .h-left h1 span { color: var(--accent); }
+        .status-dot { height: 10px; width: 10px; background: var(--in); border-radius: 50%; box-shadow: 0 0 10px var(--in); animation: pulse 2s infinite; }
+        
+        .macro-capacity { display: flex; align-items: center; gap: 8px; background: var(--panel); padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); }
+        .macro-cap-bar { width: 120px; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; position: relative; border: 1px solid var(--border); box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); }
+        .macro-cap-fill { 
+            height: 100%; background: var(--accent); transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            background-image: linear-gradient(45deg, rgba(255,255,255,0.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.15) 75%, transparent 75%, transparent);
+            background-size: 1rem 1rem; animation: moveStripes 1s linear infinite;
+        }
+        @keyframes moveStripes { 0% { background-position: 1rem 0; } 100% { background-position: 0 0; } }
+        .macro-text { font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 12px; }
+
+        .h-right { display: flex; align-items: center; gap: 12px; }
+        .shift-pill { background: var(--panel); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); font-size: 11px; font-weight: 800; font-family: 'JetBrains Mono', monospace; color: var(--accent); }
+        .clock { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 800; color: var(--text-dim); }
+        .mood-toggle { background: transparent; border: 1px solid var(--border); color: var(--text); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; }
+        .mood-toggle:hover { background: var(--panel); border-color: var(--accent); color: var(--accent); }
+
+        .dash-grid { display: grid; grid-template-columns: 1.1fr 1.6fr 1.4fr; gap: 12px; margin-bottom: 12px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; } 
+
+        .card { background: var(--card); border-radius: 12px; padding: 14px; border: 1px solid var(--border); box-shadow: var(--shadow); position: relative; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+        .card-header h3 { font-size: 12px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-dim); font-weight: 800; margin: 0; display:flex; align-items:center; gap:6px; }
+        
+        .btn-edit-lock { background: var(--btn-edit-bg); border: 1px solid transparent; color: var(--btn-edit-text); padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 10px; font-weight: 800; display:flex; align-items:center; gap:4px; transition: all 0.2s; }
+        .btn-edit-lock:hover { border: 1px solid var(--btn-edit-text); box-shadow: 0 0 10px var(--accent-glow); }
+        .btn-share { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid transparent; }
+        .btn-share:hover { border-color: #10b981; box-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
+
+        .stock-section-title { font-size: 10px; padding: 4px 8px; margin: 10px 0 8px 0; border-radius: 4px; font-weight: 800; text-transform: uppercase; display: inline-block; }
+        .title-chassis { background: rgba(37, 99, 235, 0.1); color: var(--accent); border: 1px solid rgba(37, 99, 235, 0.2); }
+        .title-pa { background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); margin-top: 15px; }
+
+        .stock-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 8px; }
+        .stock-box { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; position: relative; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; text-align: center; }
+        .stock-box:hover { border-color: var(--accent); box-shadow: 0 4px 10px var(--accent-glow); transform: translateY(-2px); }
+        .stock-box.active { border-color: var(--accent); background: var(--row-hover); box-shadow: inset 3px 0 0 var(--accent); }
+        .sb-model { font-size: 11px; font-weight: 800; color: var(--text); margin-bottom: 2px; }
+        
+        .sb-part { font-size: 10px; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--text-dim); margin-bottom: 6px; }
+        
+        .sb-qty { font-size: 16px; font-weight: 900; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .sb-alert { position: absolute; top: 6px; right: 6px; font-size: 8px; background: var(--low-alert); color: #fff; padding: 2px 4px; border-radius: 3px; font-weight: 800; animation: pulse-alert 1.5s infinite; }
+
+        .rack-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; cursor: pointer;}
+        .bin { 
+            background: var(--panel); border: 1px solid var(--border); border-radius: 8px; 
+            text-align: center; position: relative; overflow: hidden; 
+            height: 52px; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: default;
+        }
+        
+        .dim-bin { opacity: 0.15 !important; box-shadow: none !important; border-color: var(--border) !important; filter: grayscale(1); }
+
+        .bin-fill { position: absolute; bottom: 0; left: 0; right: 0; z-index: 0; transition: height 0.4s ease-out, background-color 0.4s; }
+        .bin-fill.healthy { background: var(--fill-healthy); }
+        .bin-fill.critical { background: var(--fill-critical); }
+        .bin-fill.light-green { background: var(--fill-light-green); }
+        .bin-fill.full { background: var(--fill-full); }
+        
+        .bin-content { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; width: 100%; padding: 0 4px; transition: opacity 0.2s ease; }
+        
+        .bin b { 
+            font-size: 11px; color: var(--text); font-weight: 800; opacity: 0.7; margin: 0;
+            text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;
+        }
+        .bin span { font-weight: 900; font-size: 18px; font-family: 'JetBrains Mono', monospace; color: var(--accent); line-height: 1; }
+
+        .bin:hover {
+            transform: translateY(-2px) scale(1.02); 
+            border-color: var(--accent);
+            box-shadow: var(--hover-shadow);
+        }
+        .bin:hover .bin-content { opacity: 0.1; } 
+
+        .bin-hover-view {
+            position: absolute; inset: 0; z-index: 5;
+            background: var(--hover-view-bg); backdrop-filter: blur(4px);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            opacity: 0; transition: opacity 0.2s ease, border-color 0.2s; border-radius: 6px;
+            padding: 2px;
+            border: 1px solid transparent;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .bin:hover .bin-hover-view { opacity: 1; border-color: var(--hover-view-border); }
+        .bin-hover-view b.model-text { color: var(--text-hover-main); font-size: 12px; font-weight: 800; text-shadow: none; }
+        .bin-hover-view span.part-text { font-size: 10px; color: var(--text-hover-pn); font-weight: 700; margin-top: 2px; }
+        .bin-hover-view span.type-badge { font-size: 9px; background: var(--accent); color: white; padding: 2px 4px; border-radius: 4px; margin-top: 2px; }
+
+        .flash-in { border-color: var(--in); box-shadow: 0 0 20px rgba(16, 185, 129, 0.4) inset; background: var(--zone-in); }
+        .flash-out { border-color: var(--out); box-shadow: 0 0 20px rgba(244, 63, 94, 0.4) inset; background: var(--zone-out); }
+
+        .zone-in { background: var(--zone-in); border: 1px solid var(--zone-in-border); }
+        .zone-out { background: var(--zone-out); border: 1px solid var(--zone-out-border); }
+        .form-card-title { font-size: 13px; margin-bottom: 12px; font-weight: 800; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
+        
+        .input-row { display: grid; gap: 10px; margin-bottom: 10px; }
+        .input-row.intake, .input-row.outtake { grid-template-columns: 60px 90px 1.4fr 1fr 70px; } 
+        
+        .input-group label { display: block; font-size: 9px; font-weight: 800; color: var(--text-dim); margin-bottom: 4px; text-transform: uppercase; }
+        select, input { width: 100%; padding: 8px; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); border-radius: 6px; outline: none; font-size: 12px; font-weight: 700; transition: all 0.2s; }
+        select:focus, input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+        option { font-weight: 600; background: var(--input-bg); color: var(--text); }
+
+        .action-row { display: flex; justify-content: flex-end; margin-top: 8px; }
+        .btn-confirm { padding: 10px 18px; border: none; border-radius: 8px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 11px; color: #fff; letter-spacing: 0.5px; transition: filter 0.2s, transform 0.1s, box-shadow 0.2s; }
+        .btn-confirm:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        .btn-in { background: var(--in); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); } 
+        .btn-out { background: var(--out); box-shadow: 0 4px 12px rgba(244, 63, 94, 0.3); }
+        
+        .action-btns { display: flex; gap: 8px; }
+        .btn-small { font-size: 10px; font-weight: 800; color: var(--text); background: var(--panel); border: 1px solid var(--border); padding: 6px 10px; border-radius: 6px; cursor: pointer; }
+        .btn-small:hover { background: var(--border); }
+
+        table.log-table th { font-size: 11px; padding: 8px 10px; }
+        table.log-table th:first-child { text-align: center; width: 40px; } 
+        table.log-table td { font-size: 12px; padding: 8px 10px; }
+        .type-pill { padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: 800; color: #fff; display: inline-block; min-width: 45px; text-align: center; }
+
+        .scroll { max-height: 250px; overflow-y: auto; padding-right: 6px; }
+        .scroll::-webkit-scrollbar { width: 6px; }
+        .scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
+        
+        .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center; backdrop-filter: blur(5px); }
+        .modal-box { background: var(--card); padding: 24px; border-radius: 16px; width: 460px; border: 1px solid var(--border); box-shadow: 0 25px 50px rgba(0,0,0,0.7); }
+        .pin-input { font-size: 20px; letter-spacing: 14px; text-align: center; padding: 12px; width: 100%; border-radius: 10px; margin: 16px 0; background: var(--panel); color: var(--accent); border: 2px solid var(--border); font-family: 'JetBrains Mono', monospace; }
+        .tab-header { display: flex; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        .tab-btn { background: transparent; color: var(--text-dim); border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 11px; font-weight: 800; }
+        .tab-btn.active { background: var(--panel); color: var(--text); border: 1px solid var(--border); }
+        .warn-text { color: var(--text-dim); font-weight: 600; font-size: 12px; margin-bottom: 18px; display: block; text-align: center; line-height: 1.5; }
+        .config-type-badge { font-size: 9px; padding: 2px 5px; border-radius: 4px; background: var(--panel); border: 1px solid var(--border); color: var(--text-dim); }
+        
+        #calModal .modal-box { width: 750px; max-width: 95vw; }
+        .config-row-header { display:grid; grid-template-columns: 80px 100px 100px 90px 70px 30px; gap:8px; margin-bottom:8px; font-size:10px; font-weight:800; color:var(--text-dim); text-transform:uppercase; padding:0 8px; }
+    </style>
+</head>
+<body> 
+
+<header>
+    <div class="h-left">
+        <div class="status-dot"></div>
+        <h1>Chassis and PA Cover <span>Buffer</span> Tracking</h1>
+        <div class="macro-capacity" id="macro-cap">
+            <div class="macro-cap-bar"><div class="macro-cap-fill" id="macro-fill" style="width: 0%;"></div></div>
+            <span class="macro-text" id="macro-txt">0%</span>
+        </div>
+    </div>
+    <div class="h-right">
+        <div class="shift-pill"><span id="shift-info">...</span></div>
+        <div class="clock" id="clock">00:00:00</div>
+        <button onclick="window.toggleMood()" class="mood-toggle" id="moodIcon">☀️</button>
+    </div>
+</header>
+
+<div id="report-section" style="padding-bottom: 5px;">
+    <div class="dash-grid">
+        <div class="card">
+            <div class="card-header">
+                <h3>📦 Stock Inventory</h3>
+                <button id="btn-edit-parts" onclick="window.openPartsEditor()" class="btn-edit-lock">⚙️ EDIT PARTS</button>
+            </div>
+            <div style="height: auto; padding-right: 5px;">
+                <div class="stock-section-title title-chassis">📦 CHASSIS</div>
+                <div class="stock-grid" id="stock-grid-chassis"></div>
+                
+                <div class="stock-section-title title-pa">📦 PA COVER</div>
+                <div class="stock-grid" id="stock-grid-pa"></div>
+            </div>
+        </div>
+
+        <div class="card" id="rack-map-card" style="box-shadow: 0 0 0 1.5px var(--accent);">
+            <div class="card-header">
+                <h3 style="color: var(--accent); display:flex; align-items:center; gap:6px;">📍 Dynamic Rack Map</h3>
+                <div style="display:flex; gap: 8px;">
+                    <button onclick="window.downloadRackCSV()" class="btn-edit-lock" style="background:var(--panel); color:var(--text); border:1px solid var(--border);" title="Download Template">📥 CSV</button>
+                    <label class="btn-edit-lock" style="cursor:pointer; background:var(--in); color:#fff; border:none;" id="btn-quick-upload">📤 UPLOAD
+                        <input type="file" accept=".csv" style="display:none;" onchange="window.quickUploadRacks(event)">
+                    </label>
+                    <button onclick="window.openCal()" class="btn-edit-lock">📦 RACKS</button>
+                </div>
+            </div>
+            <div class="rack-grid" id="rack-map" onclick="window.resetNormalMode()"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3>📊 Inventory Stock Analytics</h3>
+                <button id="btn-share-report" onclick="window.shareReport()" class="btn-edit-lock btn-share">📸 SHARE REPORT</button>
+            </div>
+            <div style="height: 280px; width: 100%; position: relative; margin-top: 0px;">
+                <canvas id="inventoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="form-grid">
+    <div class="card zone-in">
+        <h3 class="form-card-title" style="color:var(--in);">📥 INTAKE (FITTING)</h3>
+        <div class="input-row intake">
+            <div class="input-group"><label>Batch</label>
+                <select id="in-batch"><option>A1</option><option>A2</option><option>A3</option><option>A7</option><option>A3&A7</option></select>
+            </div>
+            <div class="input-group"><label>Type</label>
+                <select id="in-type" onchange="window.updatePartDropdowns('IN')">
+                    <option value="Chassis">Chassis</option>
+                    <option value="PA Cover">PA Cover</option>
+                </select>
+            </div>
+            <div class="input-group"><label>Model / Part No</label>
+                <select id="in-part" onchange="window.updateLocDropdowns('IN')"></select>
+            </div>
+            <div class="input-group"><label>Location</label>
+                <select id="in-loc"></select>
+            </div>
+            <div class="input-group"><label>Qty</label>
+                <input type="number" id="in-qty" placeholder="0" min="1" style="font-family:'JetBrains Mono', monospace; font-size:14px; font-weight:800;">
+            </div>
+        </div>
+        <div class="action-row">
+            <button class="btn-confirm btn-in" id="btn-process-in" onclick="window.process('IN')">Confirm Placement</button>
+        </div>
+    </div>
+
+    <div class="card zone-out">
+        <h3 class="form-card-title" style="color:var(--out);">📤 CONSUMPTION (LINE)</h3>
+        <div class="input-row outtake">
+            <div class="input-group"><label>Batch</label>
+                <select id="out-batch"><option>A1</option><option>A2</option><option>A3</option><option>A7</option><option>A3&A7</option></select>
+            </div>
+            <div class="input-group"><label>Type</label>
+                <select id="out-type" onchange="window.updatePartDropdowns('OUT')">
+                    <option value="Chassis">Chassis</option>
+                    <option value="PA Cover">PA Cover</option>
+                </select>
+            </div>
+            <div class="input-group"><label>Model / Part No</label>
+                <select id="out-part" onchange="window.updateLocDropdowns('OUT')"></select>
+            </div>
+            <div class="input-group"><label>Location</label>
+                <select id="out-loc"></select>
+            </div>
+            <div class="input-group"><label>Qty</label>
+                <input type="number" id="out-qty" placeholder="0" min="1" style="font-family:'JetBrains Mono', monospace; font-size:14px; font-weight:800; color:var(--out);">
+            </div>
+        </div>
+        <div class="action-row">
+            <button class="btn-confirm btn-out" id="btn-process-out" onclick="window.process('OUT')">Confirm Movement</button>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>Traceability Logs</h3>
+        <div class="action-btns">
+            <button onclick="window.exportCSV()" class="btn-small">⬇️ EXPORT CSV</button>
+            <button onclick="window.askPin('clear')" class="btn-small" style="color:var(--out); border-color:var(--out); background:transparent;">🗑️ ERASE LOGS</button>
+        </div>
+    </div>
+    <div class="scroll">
+        <table class="log-table" style="font-family: 'JetBrains Mono', monospace;">
+            <thead><tr><th>SI</th><th>Time / Date</th><th>Batch</th><th>Model / Part NO</th><th>Location</th><th>Type</th><th>Qty</th></tr></thead>
+            <tbody id="log-table"></tbody>
+        </table>
+    </div>
+</div>
+
+<div id="shareModal" class="modal">
+    <div class="modal-box" style="width: 95%; max-width: 1400px; padding: 20px;">
+        <div class="card-header" style="margin-bottom: 15px;">
+            <h3 style="font-size:15px; color:var(--text);">📸 Report Preview</h3>
+            <span style="font-size:11px; color:var(--text-dim); font-weight: 600;">Right-click or Long-press the image to Copy / Share</span>
+        </div>
+        <div style="background:var(--panel-alt); padding:10px; border-radius:12px; border:1px solid var(--border); display:flex; justify-content:center; max-height: 80vh; overflow-y: auto;">
+            <img id="share-preview-img" style="max-width: 100%; border-radius: 8px; box-shadow: 0 5px 20px rgba(0,0,0,0.15);" />
+        </div>
+        <button class="btn-confirm" style="background:var(--panel); color:var(--text); border:1px solid var(--border); width:100%; padding:12px; margin-top:15px; font-size: 12px;" onclick="window.closeModals()">Close Preview</button>
+    </div>
+</div>
+
+<div id="pinModal" class="modal">
+    <div class="modal-box" style="width:300px; text-align:center;">
+        <h3 style="font-size:16px; font-weight:800; margin-bottom:8px;">Admin Verification</h3>
+        <p style="font-size: 11px; color: var(--text-dim);">Enter PIN to erase logs</p>
+        <input type="password" id="pinInput" class="pin-input" maxlength="4" placeholder="••••">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <button class="btn-confirm" style="background:var(--accent); width:100%; padding:12px;" id="pinConfirmBtn">Unlock</button>
+            <button class="btn-confirm" style="background:var(--panel); color:var(--text); border:1px solid var(--border); width:100%; padding:12px;" onclick="window.closeModals()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<div id="eraseModal" class="modal">
+    <div class="modal-box" style="width:320px; text-align:center;">
+        <h3 style="font-size:18px; font-weight:800; color:var(--out); margin-bottom:12px;">⚠️ Confirm Deletion</h3>
+        <span class="warn-text">This will permanently delete all tracking logs.</span>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <button class="btn-confirm" id="btn-perform-wipe" style="background:var(--out); width:100%; padding:12px;" onclick="window.performWipe()">YES, ERASE</button>
+            <button class="btn-confirm" style="background:var(--panel); color:var(--text); border:1px solid var(--border); width:100%; padding:12px;" onclick="window.closeModals()">CANCEL</button>
+        </div>
+    </div>
+</div>
+
+<div id="calModal" class="modal">
+    <div class="modal-box">
+        <div class="tab-header">
+            <button id="tab-cal" class="tab-btn active" onclick="window.switchTab('cal')">📦 Rack Editor</button>
+            <button id="tab-pin" class="tab-btn" onclick="window.switchTab('pin')">🔑 Security</button>
+        </div>
+        
+        <div id="view-cal">
+            <div style="display:flex; justify-content:space-between; margin-bottom:12px; align-items:center;">
+                <span style="font-size:11px; color:var(--text-dim); font-weight:800;">MANUAL RACK CONFIG</span>
+                <button class="btn-small" style="background:var(--accent); color:#fff; border:none; padding:8px 14px;" onclick="window.addLocRow()">+ ADD RACK</button>
+            </div>
+            
+            <div class="config-row-header">
+                <span>Location</span><span>Part No</span><span>Model (Editable)</span><span>Type</span><span>Qty</span><span></span>
+            </div>
+            
+            <div id="cal-list" class="scroll" style="max-height:280px; padding-right:10px; margin-bottom: 16px; background:var(--panel-alt); padding:12px; border-radius:10px; border:1px solid var(--border);"></div>
+            <button class="btn-confirm" id="btn-save-cal" style="background:var(--accent); width:100%; padding:12px; font-size: 13px;" onclick="window.saveCal()">Save Configuration</button>
+        </div>
+
+        <div id="view-pin" style="display:none; text-align: center;">
+            <p style="font-size:12px; color:var(--text-dim); margin-bottom:10px; font-weight:700;">Enter new 4-digit master PIN for Erase Logs</p>
+            <input type="password" id="newPinInput" class="pin-input" maxlength="4" placeholder="NEW PIN">
+            <button class="btn-confirm" style="background:var(--accent); margin-bottom: 10px; width:100%; padding:12px; font-size:13px;" onclick="window.updateMasterPin()">Update PIN</button>
+        </div>
+        
+        <button class="btn-confirm" onclick="window.closeModals()" style="background:transparent; color:var(--text-dim); margin-top:10px; border: 1px solid var(--border); width:100%; padding:12px; font-size:12px;">Close Menu</button>
+    </div>
+</div>
+
+<div id="partsModal" class="modal">
+    <div class="modal-box" style="width: 550px;">
+        <div class="card-header"><h3 style="font-size:14px; color:var(--text);">⚙️ Configuration - Models & Parts</h3></div>
+        <div id="parts-list" class="scroll" style="max-height:220px; margin:14px 0; background:var(--panel-alt); padding:12px; border-radius:10px; border:1px solid var(--border);"></div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr 100px 70px; gap:10px; margin-bottom:16px;">
+            <input type="text" id="new-part-no" placeholder="Part No (e.g. 837488A)">
+            <input type="text" id="new-model-name" placeholder="Model Name">
+            <select id="new-part-type" style="padding: 6px;">
+                <option value="Chassis">Chassis</option>
+                <option value="PA Cover">PA Cover</option>
+            </select>
+            <button class="btn-confirm" style="background:var(--in);" onclick="window.addPartModel()">ADD</button>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <button class="btn-confirm" style="background:var(--accent); width:100%; padding:12px;" onclick="window.saveParts()">Save Changes</button>
+            <button class="btn-confirm" style="background:var(--panel); color:var(--text); border:1px solid var(--border); width:100%; padding:12px;" onclick="window.closeModals()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+    import { getFirestore, doc, onSnapshot, getDocs, collection, writeBatch, setDoc, query, orderBy, where } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAiZl9YhGsfKIKTTK5hMqqhWoIiYbri9rI",
+        authDomain: "material-controler.firebaseapp.com",
+        projectId: "material-controler",
+        storageBucket: "material-controler.firebasestorage.app",
+        messagingSenderId: "782401252699",
+        appId: "1:782401252699:web:19d6775e92c428c224fe7e"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const firestoreDb = getFirestore(app);
+
+    window.getModelName = function(code) {
+        let m = window.MODELS[code];
+        if (!m) return "";
+        return typeof m === 'object' ? m.name : m;
+    }
+    
+    // 🔥 Fallback Logic Added Here 🔥
+    window.getModelType = function(code) {
+        let m = window.MODELS[code];
+        if (!m) return "Chassis";
+        if (typeof m === 'object') {
+            return m.type ? m.type : "Chassis";
+        }
+        return "Chassis";
+    }
+
+    window.MODELS = {};
+    const modelsDocRef = doc(firestoreDb, "pa_buffer_settings", "models_v74");
+    onSnapshot(modelsDocRef, (docSnap) => {
+        if(docSnap.exists()){
+            window.MODELS = docSnap.data();
+        } else {
+            window.MODELS = { "837488A": {name: "AHLOB", type: "Chassis"}, "836742A": {name: "AHEGHA", type: "PA Cover"} };
+            setDoc(modelsDocRef, window.MODELS);
+        }
+        window.render();
+    });
+
+    const MAX_CAPACITY = 2000; 
+
+    let savedTheme = localStorage.getItem('pa_v74_theme') || 'sun';
+    document.body.setAttribute('data-theme', savedTheme);
+    document.getElementById('moodIcon').innerText = savedTheme === 'moon' ? '🌙' : '☀️';
+
+    window.toggleMood = function() {
+        const currentTheme = document.body.getAttribute('data-theme');
+        const newTheme = currentTheme === 'moon' ? 'sun' : 'moon';
+        document.body.setAttribute('data-theme', newTheme);
+        document.getElementById('moodIcon').innerText = newTheme === 'moon' ? '🌙' : '☀️';
+        localStorage.setItem('pa_v74_theme', newTheme);
+        window.render(); 
+    }
+
+    let bins = [];
+    let logs = [];
+    let masterPin = localStorage.getItem('pa_v74_pin') || "1234";
+    let lastReset = localStorage.getItem('pa_v74_reset') || "";
+    window.currentHighlight = null; 
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const binsCol = collection(firestoreDb, "pa_buffer_bins");
+        onSnapshot(binsCol, (snapshot) => {
+            bins = [];
+            snapshot.forEach((doc) => { bins.push({ dbId: doc.id, ...doc.data() }); });
+            if(bins.length === 0) seedDefaultBins();
+            else window.render();
+        });
+
+        const logsCol = collection(firestoreDb, "pa_buffer_logs");
+        const qLogs = query(logsCol, orderBy("timestamp", "desc"));
+        onSnapshot(qLogs, (snapshot) => {
+            logs = [];
+            snapshot.forEach((doc) => { logs.push({ id: doc.id, ...doc.data() }); });
+            window.render();
+        });
+    });
+
+    async function seedDefaultBins() {
+        const defaultBins = [
+            { id: "700-001-01", p: "837488A", t: "Chassis", q: 324 }, { id: "700-001-02", p: "837488A", t: "Chassis", q: 324 }, 
+            { id: "700-002-01", p: "836742A", t: "PA Cover", q: 168 }, { id: "700-002-02", p: "836742A", t: "Chassis", q: 180 }
+        ];
+        const batch = writeBatch(firestoreDb);
+        defaultBins.forEach((b, i) => {
+            const docRef = doc(collection(firestoreDb, "pa_buffer_bins"));
+            batch.set(docRef, { ...b, order: i });
+        });
+        await batch.commit();
+    }
+
+    async function performFirebaseLogWipe() {
+        try {
+            const snapshot = await getDocs(collection(firestoreDb, "pa_buffer_logs"));
+            const batch = writeBatch(firestoreDb);
+            snapshot.docs.forEach((d) => batch.delete(d.ref));
+            await batch.commit();
+        } catch(e) { console.error("Error wiping logs", e); }
+    }
+
+    async function performOneMonthLogCleanup() {
+        try {
+            const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+            const logsCol = collection(firestoreDb, "pa_buffer_logs");
+            const qOldLogs = query(logsCol, where("timestamp", "<", thirtyDaysAgo));
+            const snapshot = await getDocs(qOldLogs);
+
+            if (!snapshot.empty) {
+                const batch = writeBatch(firestoreDb);
+                snapshot.docs.forEach((d) => batch.delete(d.ref));
+                await batch.commit();
+            }
+        } catch(e) { console.error("Error auto-wiping old logs", e); }
+    }
+
+    function updateLogic() {
+        const now = new Date(); const mins = now.getHours() * 60 + now.getMinutes();
+        let s = "C"; if (mins >= 390 && mins < 870) s = "A"; else if (mins >= 870 && mins < 1350) s = "B";
+        
+        if (mins >= 468 && lastReset !== now.toLocaleDateString()) { 
+            lastReset = now.toLocaleDateString();
+            localStorage.setItem('pa_v74_reset', lastReset);
+            performOneMonthLogCleanup();
+        }
+        
+        document.getElementById('shift-info').innerText = `SHIFT ${s}`;
+        document.getElementById('clock').innerText = now.toLocaleTimeString();
+        return s;
+    }
+
+    // 🔥 This handles the Dynamic Model dropdown generation based on the selected Type 🔥
+    window.updatePartDropdowns = function(source) {
+        const types = source === 'BOTH' ? ['IN', 'OUT'] : [source];
+        
+        types.forEach(pfx => {
+            const prefix = pfx.toLowerCase();
+            const typeSelect = document.getElementById(`${prefix}-type`).value; 
+            const partSelect = document.getElementById(`${prefix}-part`);
+            
+            // Capture current selection to restore it later
+            const currentVal = partSelect.value;
+            
+            partSelect.innerHTML = "";
+            let hasOptions = false;
+            
+            Object.keys(window.MODELS || {}).forEach(code => {
+                let mType = window.getModelType(code);
+                // Case-insensitive comparison just in case
+                if (mType.toLowerCase() === typeSelect.toLowerCase()) {
+                    partSelect.innerHTML += `<option value="${code}">${code} | ${window.getModelName(code)}</option>`;
+                    hasOptions = true;
+                }
+            });
+            
+            if (!hasOptions) {
+                partSelect.innerHTML = `<option value="">No ${typeSelect} available</option>`;
+            } else {
+                // Try to restore previous value if it exists in the new options
+                let exists = Array.from(partSelect.options).some(opt => opt.value === currentVal);
+                if (exists) {
+                    partSelect.value = currentVal;
+                }
+            }
+            
+            window.updateLocDropdowns(pfx);
+        });
+    }
+
+    window.updateLocDropdowns = function(source = null) {
+        let inPart = document.getElementById('in-part').value;
+        let outPart = document.getElementById('out-part').value;
+        let uniqueLocs = [...new Set(bins.map(b => b.id))];
+        
+        let inOptions = ""; let outOptions = "";
+        let outPartsList = [];
+
+        uniqueLocs.forEach(locId => {
+            inOptions += `<option value="${locId}">${locId}</option>`;
+            let matchingBin = bins.find(b => b.id === locId && b.p === outPart && b.q > 0);
+            if (matchingBin) {
+                outOptions += `<option value="${locId}">${locId}</option>`;
+                outPartsList.push(matchingBin);
+            }
+        });
+
+        if(inOptions === "") inOptions = "<option value=''>No Available Bins</option>";
+        if(outOptions === "") outOptions = "<option value=''>No Stock Available</option>";
+
+        document.getElementById('in-loc').innerHTML = inOptions;
+        document.getElementById('out-loc').innerHTML = outOptions;
+
+        if (source === 'OUT' && outPartsList.length > 0) {
+            let lowestBin = outPartsList.reduce((prev, curr) => (curr.q < prev.q ? curr : prev));
+            document.getElementById('out-loc').value = lowestBin.id;
+        }
+    }
+
+    window.resetNormalMode = function() {
+        window.currentHighlight = null;
+        window.render();
+    }
+    
+    window.highlightPart = function(partCode) {
+        if(window.currentHighlight === partCode) {
+            window.resetNormalMode();
+        } else {
+            window.currentHighlight = partCode;
+            window.render();
+        }
+    }
+
+    window.updateChart = function(modelStats) {
+        if (typeof Chart === 'undefined') return; 
+        
+        if (typeof ChartDataLabels !== 'undefined') {
+            Chart.register(ChartDataLabels);
+        }
+
+        const ctx = document.getElementById('inventoryChart').getContext('2d');
+        let labels = Object.keys(modelStats);
+        let chassisData = labels.map(m => modelStats[m].chassis);
+        let paData = labels.map(m => modelStats[m].paCover);
+        
+        let isDark = document.body.getAttribute('data-theme') === 'moon';
+        let textColor = isDark ? '#cbd5e1' : '#475569';
+        let gridColor = isDark ? '#1e293b' : '#cbd5e1';
+
+        if(window.inventoryChartInstance) {
+            window.inventoryChartInstance.data.labels = labels;
+            window.inventoryChartInstance.data.datasets[0].data = chassisData;
+            window.inventoryChartInstance.data.datasets[1].data = paData;
+            window.inventoryChartInstance.update();
+        } else {
+            window.inventoryChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Chassis',
+                            data: chassisData,
+                            backgroundColor: isDark ? 'rgba(34, 211, 238, 0.9)' : 'rgba(37, 99, 235, 0.9)',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'PA Cover',
+                            data: paData,
+                            backgroundColor: 'rgba(245, 158, 11, 0.9)',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: { top: 10 } },
+                    plugins: {
+                        legend: { 
+                            display: true, 
+                            position: 'top',
+                            align: 'center',
+                            labels: { color: textColor, font: { family: 'Inter', weight: 'bold' }, padding: 15 } 
+                        },
+                        tooltip: { mode: 'index', intersect: false },
+                        datalabels: {
+                            color: textColor,
+                            anchor: 'end',
+                            align: 'top',
+                            font: { weight: 'bold', family: 'JetBrains Mono', size: 10 },
+                            formatter: function(value) { return value > 0 ? value : ''; } 
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor, font: {family: 'JetBrains Mono'} } },
+                        x: { grid: { display: false }, ticks: { color: textColor, font: { size: 11, weight: 'bold' } } }
+                    },
+                    animation: { duration: 800, easing: 'easeOutQuart' }
+                }
+            });
+        }
+    }
+
+    window.render = function(flashBin = null, flashType = null) {
+        const curInLoc = document.getElementById('in-loc').value;
+        const curOutLoc = document.getElementById('out-loc').value;
+
+        const sGridChassis = document.getElementById('stock-grid-chassis'),
+              sGridPa = document.getElementById('stock-grid-pa'), 
+              rGrid = document.getElementById('rack-map'),
+              lTbl = document.getElementById('log-table');
+              
+        sGridChassis.innerHTML = ''; sGridPa.innerHTML = ''; rGrid.innerHTML = ''; lTbl.innerHTML = '';
+        
+        let partTotals = {};
+        let modelStats = {}; 
+
+        Object.keys(window.MODELS || {}).forEach(k => {
+            partTotals[k] = 0;
+            let mName = window.getModelName(k);
+            if(!modelStats[mName]) modelStats[mName] = { chassis: 0, paCover: 0 };
+        });
+        
+        let visualMap = {}; let locationOrder = []; let globalCurrent = 0; 
+        let sortedBins = [...bins].sort((a,b) => (a.order || 0) - (b.order || 0));
+
+        sortedBins.forEach(b => {
+            globalCurrent += b.q;
+            if(b.p && partTotals[b.p] !== undefined) { partTotals[b.p] += b.q; }
+            if (!visualMap[b.id]) { visualMap[b.id] = 0; locationOrder.push(b.id); }
+            visualMap[b.id] += b.q;
+            
+            if(b.p && window.MODELS[b.p]) {
+                let mName = window.getModelName(b.p);
+                let type = b.t === 'PA Cover' ? 'PA Cover' : 'Chassis'; 
+                if(type === 'PA Cover') modelStats[mName].paCover += b.q;
+                else modelStats[mName].chassis += b.q;
+            }
+        });
+
+        let globalMax = locationOrder.length * MAX_CAPACITY;
+
+        locationOrder.forEach(locId => {
+            let totalQ = visualMap[locId];
+            let fillPercent = Math.min(100, (totalQ / MAX_CAPACITY) * 100);
+            let fillClass = 'healthy';
+            
+            if (totalQ >= 2000) fillClass = 'full';
+            else if (totalQ >= 1000) fillClass = 'light-green';
+            else if (fillPercent < 15 && totalQ > 0) fillClass = 'critical'; 
+
+            let partsInBin = sortedBins.filter(b => b.id === locId && b.q > 0);
+            let hoverContent = "";
+            if (partsInBin.length === 0) {
+                hoverContent = `<b class="model-text" style="opacity:0.5;">EMPTY</b>`;
+            } else if (partsInBin.length === 1) {
+                let p = partsInBin[0].p;
+                let t = partsInBin[0].t || window.getModelType(p);
+                hoverContent = `<b class="model-text">${window.getModelName(p)}</b><span class="part-text">${p}</span><span class="type-badge">${t.toUpperCase()}</span>`;
+            } else {
+                hoverContent = `<b class="model-text" style="color:var(--mixed-color);">MIXED (${partsInBin.length})</b>`;
+            }
+
+            let dimClass = '';
+            if (window.currentHighlight) {
+                let containsPart = partsInBin.some(b => b.p === window.currentHighlight);
+                if (!containsPart) dimClass = 'dim-bin';
+            }
+
+            let flashClass = '';
+            if (locId === flashBin) flashClass = flashType === 'IN' ? 'flash-in' : 'flash-out';
+
+            rGrid.innerHTML += `
+                <div class="bin ${flashClass} ${dimClass}" id="bin-${locId.replace(/\s+/g, '-')}">
+                    <div class="bin-fill ${fillClass}" style="height: ${fillPercent}%"></div>
+                    <div class="bin-content">
+                        <b>${locId}</b>
+                        <span>${totalQ}</span>
+                    </div>
+                    <div class="bin-hover-view">
+                        ${hoverContent}
+                    </div>
+                </div>`; 
+        });
+
+        Object.keys(window.MODELS || {}).forEach(code => {
+            let tot = partTotals[code] || 0;
+            let isActive = window.currentHighlight === code ? 'active' : '';
+            let type = window.getModelType(code);
+            let lowAlert = (tot < 130) ? '<span class="sb-alert">LOW</span>' : '';
+            
+            let boxHTML = `
+                <div class="stock-box ${isActive}" onclick="event.stopPropagation(); window.highlightPart('${code}')" title="Click to locate stock">
+                    ${lowAlert}
+                    <span class="sb-model">${window.getModelName(code)}</span>
+                    <span class="sb-part">${code}</span>
+                    <span class="sb-qty">${tot}</span>
+                </div>
+            `;
+            
+            if (type === 'PA Cover') sGridPa.innerHTML += boxHTML;
+            else sGridChassis.innerHTML += boxHTML;
+        });
+        
+        // Refresh Chart & Dropdowns
+        window.updateChart(modelStats);
+        window.updatePartDropdowns('BOTH'); // 🔥 Dynamically load parts based on default Type selection 🔥
+
+        let globalPercent = globalMax > 0 ? ((globalCurrent / globalMax) * 100).toFixed(1) : 0;
+        document.getElementById('macro-fill').style.width = `${globalPercent}%`;
+        document.getElementById('macro-txt').innerText = `${globalPercent}%`;
+        
+        if (globalPercent > 90) document.getElementById('macro-fill').style.background = 'var(--mixed-color)';
+        else if (globalPercent < 20) document.getElementById('macro-fill').style.background = 'var(--low-alert)';
+        else document.getElementById('macro-fill').style.background = 'var(--accent)';
+
+        // Restore locations after dropdowns update
+        if(curInLoc && document.querySelector(`#in-loc option[value="${curInLoc}"]`)) document.getElementById('in-loc').value = curInLoc;
+        if(curOutLoc && document.querySelector(`#out-loc option[value="${curOutLoc}"]`)) document.getElementById('out-loc').value = curOutLoc;
+
+        logs.forEach((log, i) => {
+            let typeBadge = log.type === 'IN' 
+                ? `<span class="type-pill" style="background: var(--in);">IN</span>` 
+                : `<span class="type-pill" style="background: var(--out);">OUT</span>`;
+            
+            let partTypePill = log.partType ? `<span style="background:var(--accent); color:white; padding:2px 4px; border-radius:3px; font-size:8px;">${log.partType.toUpperCase()}</span>` : '';
+
+            lTbl.innerHTML += `<tr>
+                <td style="font-weight: 800; color: var(--text-dim); text-align: center;">${i + 1}</td>
+                <td>${log.time}</td>
+                <td style="font-weight:800;">${log.batch}</td>
+                <td>
+                    <b style="color:var(--text); font-size:12px;">${window.getModelName(log.part)}</b> ${partTypePill} <br> 
+                    <span style="font-size:10px; color:var(--text-dim); font-family:'JetBrains Mono', monospace;">${log.part}</span>
+                </td>
+                <td><span style="background:var(--panel-alt); padding:3px 6px; border-radius:4px; border:1px solid var(--border); font-family:'JetBrains Mono',monospace;">${log.loc || 'AUTO'}</span></td>
+                <td>${typeBadge}</td>
+                <td style="font-weight:900; font-size:13px; font-family:'JetBrains Mono',monospace; color:var(--accent);">${log.qty}</td>
+            </tr>`;
+        });
+    }
+
+    window.process = async function(type) {
+        const pfx = type === 'IN' ? 'in' : 'out';
+        const b = document.getElementById(`${pfx}-batch`).value;
+        const p = document.getElementById(`${pfx}-part`).value;
+        const q = parseInt(document.getElementById(`${pfx}-qty`).value);
+        const locId = document.getElementById(`${pfx}-loc`).value;
+        const t = document.getElementById(`${pfx}-type`).value; 
+
+        if(!p) return alert("Please select a Part Number.");
+        if(!q || q <= 0) return alert("Valid Qty needed.");
+        if(!locId) return alert("Please select a location.");
+        
+        const btn = document.getElementById(`btn-process-${pfx}`);
+        const origText = btn.innerText;
+        btn.innerText = "Processing...";
+        btn.disabled = true;
+
+        try {
+            const batch = writeBatch(firestoreDb);
+            let localBinsCopy = JSON.parse(JSON.stringify(bins));
+
+            if(type === 'IN') {
+                let existingEntry = localBinsCopy.find(bin => bin.id === locId && bin.p === p && (bin.t === t || !bin.t));
+                if (existingEntry) {
+                    existingEntry.q += q;
+                    batch.update(doc(firestoreDb, "pa_buffer_bins", existingEntry.dbId), { q: existingEntry.q, t: t });
+                } else {
+                    let emptyEntry = localBinsCopy.find(bin => bin.id === locId && bin.q === 0 && !bin.p);
+                    if (emptyEntry) {
+                        emptyEntry.p = p; emptyEntry.q = q; emptyEntry.t = t;
+                        batch.update(doc(firestoreDb, "pa_buffer_bins", emptyEntry.dbId), { p: p, q: q, t: t });
+                    } else {
+                        const newDocRef = doc(collection(firestoreDb, "pa_buffer_bins"));
+                        batch.set(newDocRef, { id: locId, p: p, t: t, q: q, order: 999 }); 
+                    }
+                }
+            } 
+            else if(type === 'OUT') {
+                let targetBin = localBinsCopy.find(bin => bin.id === locId && bin.p === p && (bin.t === t || !bin.t));
+                if(!targetBin || targetBin.q < q) {
+                    btn.innerText = origText; btn.disabled = false;
+                    return alert(`Not enough stock of this specific part/type in location ${locId}!`);
+                }
+                targetBin.q -= q;
+                
+                if (targetBin.q === 0) {
+                    let locEntries = localBinsCopy.filter(bin => bin.id === locId);
+                    if (locEntries.length === 1) {
+                        batch.update(doc(firestoreDb, "pa_buffer_bins", targetBin.dbId), { p: "", t: "", q: 0 });
+                    } else {
+                        batch.delete(doc(firestoreDb, "pa_buffer_bins", targetBin.dbId));
+                    }
+                } else {
+                    batch.update(doc(firestoreDb, "pa_buffer_bins", targetBin.dbId), { q: targetBin.q });
+                }
+            }
+            
+            const now = new Date();
+            const timeString = now.toLocaleDateString('en-GB', {day:'numeric', month:'numeric'}) + " " + now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+            
+            const logRef = doc(collection(firestoreDb, "pa_buffer_logs"));
+            batch.set(logRef, {
+                time: timeString, batch: b, part: p, partType: t, loc: locId, type: type, qty: q, rs: updateLogic(), timestamp: Date.now()
+            });
+
+            await batch.commit();
+            document.getElementById(`${pfx}-qty`).value = ''; 
+            
+            setTimeout(() => {
+                let binEl = document.getElementById(`bin-${locId.replace(/\s+/g, '-')}`);
+                if(binEl) {
+                    binEl.classList.add(type === 'IN' ? 'flash-in' : 'flash-out');
+                    setTimeout(() => {
+                        binEl.classList.remove('flash-in');
+                        binEl.classList.remove('flash-out');
+                    }, 1000);
+                }
+            }, 100);
+
+        } catch (error) {
+            console.error("Transaction Error", error);
+            alert("Error processing movement. Check connection/rules.");
+        } finally {
+            btn.innerText = origText; btn.disabled = false;
+        }
+    }
+
+    window.shareReport = async function() {
+        const reportSection = document.getElementById('report-section');
+        const rackCard = document.getElementById('rack-map-card');
+        const dashGrid = document.querySelector('.dash-grid');
+        
+        document.getElementById('btn-edit-parts').style.display = 'none';
+        document.getElementById('btn-share-report').style.display = 'none';
+        
+        const origBg = reportSection.style.background;
+        const origDisplay = rackCard.style.display;
+        const origGrid = dashGrid.style.gridTemplateColumns;
+        const origGap = dashGrid.style.gap;
+        
+        const isDark = document.body.getAttribute('data-theme') === 'moon';
+        reportSection.style.background = isDark ? '#0b0f19' : '#f0f4f8';
+        reportSection.style.padding = "20px";
+        reportSection.style.borderRadius = "12px";
+        
+        rackCard.style.display = 'none'; 
+        dashGrid.style.gridTemplateColumns = '1fr 1fr'; 
+        dashGrid.style.gap = '20px';
+
+        try {
+            const canvas = await html2canvas(reportSection, { 
+                scale: 2, 
+                backgroundColor: isDark ? '#0b0f19' : '#f0f4f8' 
+            });
+            
+            document.getElementById('share-preview-img').src = canvas.toDataURL('image/png');
+            document.getElementById('shareModal').style.display = 'flex';
+        } catch(err) {
+            console.error("Screenshot error:", err);
+            alert("Failed to generate preview.");
+        } finally {
+            document.getElementById('btn-edit-parts').style.display = '';
+            document.getElementById('btn-share-report').style.display = '';
+            rackCard.style.display = origDisplay;
+            dashGrid.style.gridTemplateColumns = origGrid;
+            dashGrid.style.gap = origGap;
+            reportSection.style.background = origBg;
+            reportSection.style.padding = "0";
+            reportSection.style.paddingBottom = "5px";
+        }
+    }
+
+    window.askPin = function(mode) {
+        document.getElementById('pinInput').value = ''; document.getElementById('pinModal').style.display = 'flex';
+        document.getElementById('pinInput').focus();
+        document.getElementById('pinConfirmBtn').onclick = () => {
+            if(document.getElementById('pinInput').value === masterPin) { 
+                window.closeModals(); 
+                if(mode === 'clear') document.getElementById('eraseModal').style.display = 'flex'; 
+            } else alert("Wrong PIN.");
+        };
+    }
+
+    window.performWipe = async function() { 
+        const btn = document.getElementById('btn-perform-wipe');
+        btn.innerText = "ERASING..."; btn.disabled = true;
+        await performFirebaseLogWipe();
+        btn.innerText = "YES, ERASE"; btn.disabled = false;
+        window.closeModals(); 
+    }
+
+    window.switchTab = function(tab) {
+        document.getElementById('view-cal').style.display = tab === 'cal' ? 'block' : 'none';
+        document.getElementById('view-pin').style.display = tab === 'pin' ? 'block' : 'none';
+        document.getElementById('tab-cal').classList.toggle('active', tab === 'cal');
+        document.getElementById('tab-pin').classList.toggle('active', tab === 'pin');
+    }
+
+    window.addLocRow = function(locId = '', partNo = '', qty = 0, type = 'Chassis', modelName = '') {
+        let tOptions = `<option value="Chassis" ${type === 'Chassis' ? 'selected' : ''}>Chassis</option>
+                        <option value="PA Cover" ${type === 'PA Cover' ? 'selected' : ''}>PA Cover</option>`;
+                        
+        let html = `<div class="config-row" style="display:grid; grid-template-columns: 80px 100px 100px 90px 70px 30px; gap:8px; margin-bottom:8px; align-items:center;">
+            <input type="text" class="m-id" value="${locId}" placeholder="Loc" style="padding:6px; font-weight:700; font-family:'JetBrains Mono', monospace; font-size:11px; background:var(--card); border:1px solid var(--border); border-radius:4px; color:var(--text);">
+            
+            <input type="text" class="m-p" value="${partNo}" placeholder="Part No" onkeyup="let m=window.getModelName(this.value); if(m) this.nextElementSibling.value=m;" style="padding:6px; font-weight:700; font-family:'JetBrains Mono', monospace; font-size:11px; background:var(--card); border:1px solid var(--border); border-radius:4px; color:var(--text);">
+            
+            <input type="text" class="m-model" value="${modelName}" placeholder="Model Name" style="padding:6px; font-weight:700; font-family:'JetBrains Mono', monospace; font-size:11px; background:var(--card); border:1px solid var(--border); border-radius:4px; color:var(--text);">
+            
+            <select class="m-t" style="padding:6px; font-size:10px; border-radius:4px; border:1px solid var(--border); background:var(--card); color:var(--text);">${tOptions}</select>
+            <input type="number" class="m-q" value="${qty}" placeholder="Qty" style="padding:6px; font-weight:700; font-family:'JetBrains Mono', monospace; font-size:11px; background:var(--card); border:1px solid var(--border); border-radius:4px; color:var(--text);">
+            <button onclick="this.parentElement.remove()" style="background:var(--out); color:#fff; border:none; border-radius:4px; cursor:pointer; font-weight:800; font-size:11px; height: 100%;">X</button>
+        </div>`;
+        document.getElementById('cal-list').insertAdjacentHTML('beforeend', html);
+    }
+
+    window.downloadRackCSV = function() {
+        let csv = "Model,Part No,Type,Location,Quantity\nAHLOB,837488A,Chassis,Rack-01,500\nAHEGHA,836742A,PA Cover,Rack-02,120\n,,Chassis,Rack-03,0\n";
+        const a = document.createElement('a'); 
+        a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); 
+        a.download = "Rack_Upload_Template.csv"; 
+        a.click();
+    }
+
+    window.quickUploadRacks = async function(event) {
+        const file = event.target.files[0];
+        if(!file) return;
+        
+        const btn = document.getElementById('btn-quick-upload');
+        const origHtml = btn.innerHTML;
+        btn.innerHTML = "⏳ UPLOADING...";
+
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            const rows = e.target.result.split('\n');
+            let newBinsData = [];
+            let rowIndex = 0;
+            
+            for(let i=1; i<rows.length; i++) {
+                if(!rows[i].trim()) continue;
+                let cols = rows[i].split(',');
+                if(cols.length >= 4) {
+                    let newModel = cols[0] ? cols[0].trim() : "";
+                    let newPart = cols[1] ? cols[1].trim() : "";
+                    let newType = cols[2] ? cols[2].trim() : "Chassis"; 
+                    let newId = cols[3] ? cols[3].trim() : "";
+                    let newTotal = cols[4] ? parseInt(cols[4].trim()) : 0;
+                    
+                    if(isNaN(newTotal) || newTotal < 0) newTotal = 0;
+                    if(newId === '') continue;
+                    
+                    if(newPart && newModel && !window.MODELS[newPart]) {
+                        window.MODELS[newPart] = { name: newModel, type: newType };
+                        setDoc(doc(firestoreDb, "pa_buffer_settings", "models_v74"), window.MODELS);
+                    }
+
+                    if(!newPart && newTotal > 0) {
+                        newPart = Object.keys(window.MODELS || {})[0] || "";
+                        newType = window.getModelType(newPart);
+                    }
+
+                    newBinsData.push({ id: newId, p: newPart, t: newType, q: newTotal, order: rowIndex });
+                    rowIndex++;
+                }
+            }
+            
+            if(newBinsData.length > 0) {
+                try {
+                    const snapshot = await getDocs(collection(firestoreDb, "pa_buffer_bins"));
+                    const batch = writeBatch(firestoreDb);
+                    snapshot.docs.forEach((d) => batch.delete(d.ref));
+                    
+                    newBinsData.forEach(b => {
+                        const docRef = doc(collection(firestoreDb, "pa_buffer_bins"));
+                        batch.set(docRef, b);
+                    });
+                    
+                    await batch.commit();
+                    alert("Racks Uploaded & Synced Successfully!");
+                } catch(err) {
+                    alert("Error saving racks.");
+                    console.error(err);
+                }
+            } else {
+                alert("No valid rows found in CSV.");
+            }
+            event.target.value = '';
+            btn.innerHTML = origHtml;
+        };
+        reader.readAsText(file);
+    }
+
+    window.openCal = function() {
+        const list = document.getElementById('cal-list'); 
+        list.innerHTML = '';
+        
+        let sortedBins = [...bins].sort((a,b) => (a.order || 0) - (b.order || 0));
+
+        sortedBins.forEach((b) => {
+            let mName = b.p ? window.getModelName(b.p) : "";
+            let tOptions = `<option value="Chassis" ${b.t === 'Chassis' ? 'selected' : ''}>Chassis</option>
+                            <option value="PA Cover" ${b.t === 'PA Cover' ? 'selected' : ''}>PA Cover</option>`;
+            
+            list.innerHTML += `<div class="config-row" data-original-id="${b.id}" style="display:grid; grid-template-columns: 80px 100px 100px 90px 70px 30px; gap:8px; margin-bottom:8px; align-items:center;">
+                <input type="text" class="m-id" value="${b.id}" placeholder="Loc" style="padding:6px; font-weight:700; font-family:'JetBrains Mono', monospace; font-size:11px; background:var(--card); border:1px solid var(--border); border-radius:4px; color:var(--text);">
+                
+                <input type="text" class="m-p" value="${b.p}" placeholder="Part No" onkeyup="let m=window.getModelName(this.value); if(m) this.nextElementSibling.value=m;" style="padding:6px; font-weight:700; font-family:'JetBrains Mono', monospace; font-size:11px; background:var(--card); border:1px solid var(--border); border-radius:4px; color:var(--text);">
+                
+                <input type="text" class="m-model" value="${mName}" placeholder="Model Name" style="padding:6px; font-weight:700; font-family:'JetBrains Mono', monospace; font-size:11px; background:var(--card); border:1px solid var(--border); border-radius:4px; color:var(--text);">
+                
+                <select class="m-t" style="padding:6px; font-size:10px; border-radius:4px; border:1px solid var(--border); background:var(--card); color:var(--text);">${tOptions}</select>
+                <input type="number" class="m-q" value="${b.q}" placeholder="Qty" style="padding:6px; font-weight:700; font-family:'JetBrains Mono', monospace; font-size:11px; background:var(--card); border:1px solid var(--border); border-radius:4px; color:var(--text);">
+                <button onclick="this.parentElement.remove()" style="background:var(--out); color:#fff; border:none; border-radius:4px; cursor:pointer; font-weight:800; font-size:11px; height: 100%;">X</button>
+            </div>`;
+        });
+        document.getElementById('calModal').style.display = 'flex'; window.switchTab('cal');
+    }
+
+    window.saveCal = async function() {
+        const btn = document.getElementById('btn-save-cal');
+        btn.innerText = "Saving to Firebase..."; btn.disabled = true;
+
+        try {
+            let newBinsData = [];
+            let rows = document.querySelectorAll('.config-row');
+            let rowIndex = 0;
+            
+            rows.forEach((row) => {
+                let newId = row.querySelector('.m-id').value.trim();
+                let newPart = row.querySelector('.m-p').value.trim();
+                let newModel = row.querySelector('.m-model').value.trim();
+                let newType = row.querySelector('.m-t').value;
+                let newTotal = parseInt(row.querySelector('.m-q').value);
+                
+                if (isNaN(newTotal) || newTotal < 0) newTotal = 0;
+                if (newId === '') return; 
+                
+                if(newPart && (!window.MODELS[newPart] || window.MODELS[newPart].name !== newModel || window.MODELS[newPart].type !== newType)) {
+                    window.MODELS[newPart] = { name: newModel || "Unknown Model", type: newType };
+                    setDoc(doc(firestoreDb, "pa_buffer_settings", "models_v74"), window.MODELS);
+                }
+
+                newBinsData.push({ id: newId, p: newPart, t: newType, q: newTotal, order: rowIndex });
+                rowIndex++;
+            });
+            
+            const snapshot = await getDocs(collection(firestoreDb, "pa_buffer_bins"));
+            const batch = writeBatch(firestoreDb);
+            snapshot.docs.forEach((d) => batch.delete(d.ref));
+            
+            newBinsData.forEach(b => {
+                const docRef = doc(collection(firestoreDb, "pa_buffer_bins"));
+                batch.set(docRef, b);
+            });
+            
+            await batch.commit();
+            alert("Configuration Saved Safely."); 
+            window.closeModals();
+
+        } catch(e) {
+            console.error("Save Cal Error", e);
+            alert("Error saving layout. Check connection.");
+        } finally {
+            btn.innerText = "Save Configuration"; btn.disabled = false;
+        }
+    }
+
+    window.openPartsEditor = function() {
+        window.tempParts = JSON.parse(JSON.stringify(window.MODELS)); 
+        window.renderPartsList();
+        document.getElementById('partsModal').style.display = 'flex';
+    }
+
+    window.renderPartsList = function() {
+        const list = document.getElementById('parts-list');
+        list.innerHTML = Object.keys(window.tempParts).map(k => {
+            let mData = window.tempParts[k];
+            let mName = typeof mData === 'object' ? mData.name : mData;
+            let mType = typeof mData === 'object' ? mData.type : 'Chassis';
+            
+            return `
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items:center; border-bottom:1px solid var(--border); padding-bottom:8px;">
+                <span style="font-size:12px;"><b>${mName}</b> - ${k} <span class="config-type-badge">${mType.toUpperCase()}</span></span>
+                <button onclick="window.removePartModel('${k}')" style="background:var(--out); color:#fff; border:none; border-radius:6px; padding:5px 10px; cursor:pointer;">🗑️</button>
+            </div>
+        `}).join('');
+    }
+
+    window.addPartModel = function() {
+        let p = document.getElementById('new-part-no').value.trim();
+        let m = document.getElementById('new-model-name').value.trim();
+        let t = document.getElementById('new-part-type').value;
+        if(p && m) {
+            window.tempParts[p] = { name: m, type: t };
+            document.getElementById('new-part-no').value = '';
+            document.getElementById('new-model-name').value = '';
+            window.renderPartsList();
+        } else {
+            alert("Both Part No and Model Name are required.");
+        }
+    }
+
+    window.removePartModel = function(k) {
+        delete window.tempParts[k];
+        window.renderPartsList();
+    }
+
+    window.saveParts = async function() {
+        if(Object.keys(window.tempParts).length === 0) return alert("You must have at least one part!");
+        try {
+            const modelsDocRef = doc(firestoreDb, "pa_buffer_settings", "models_v74");
+            await setDoc(modelsDocRef, window.tempParts);
+            alert("Parts Config updated successfully!");
+            window.closeModals();
+        } catch(e) {
+            alert("Error saving parts.");
+            console.error(e);
+        }
+    }
+
+    window.updateMasterPin = function() {
+        const newPin = document.getElementById('newPinInput').value;
+        if(newPin.length === 4) { masterPin = newPin; localStorage.setItem('pa_v75_pin', newPin); alert("PIN Updated successfully."); window.switchTab('cal'); }
+    }
+
+    window.closeModals = function() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
+    
+    window.exportCSV = function() {
+        let csv = "SI,Time/Date,Batch,PartNo,Model,Type,Location,Transaction,Qty\n"; 
+        logs.forEach((l, i) => csv += `${logs.length-i},${l.time},${l.batch},${l.part},${window.getModelName(l.part)},${l.partType || window.getModelType(l.part)},${l.loc || 'AUTO'},${l.type},${l.qty}\n`);
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = "Chassis_PA_Buffer_Traceability.csv"; a.click();
+    }
+
+    if(!localStorage.getItem('pa_theme_set_v75')) {
+        document.body.setAttribute('data-theme', 'moon');
+        document.getElementById('moodIcon').innerText = '🌙';
+        localStorage.setItem('pa_theme_set_v75', 'true');
+    }
+
+    setInterval(updateLogic, 1000);
+</script>
+</body>
+</html>

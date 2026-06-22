@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Material Movement Report</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #0340a0;
+            --accent: #3b82f6;
+            --purple: #8b5cf6;
+            --danger: #ef4444;
+            --success: #10b981;
+            --bg: #f5f7fa;
+            --border: #d4dce8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        
+        body { 
+            background: var(--bg); padding: 4px; color: #334155; 
+            height: 100vh; overflow: hidden; display: flex; flex-direction: column;
+        }
+
+        .container { 
+            flex: 1; display: flex; flex-direction: column; gap: 4px; 
+            width: 100%; max-width: 100%; margin: 0 auto; min-height: 0;
+        }
+        
+        header, .stats-bar, .controls-bar { flex-shrink: 0; }
+
+        header { 
+            background: white; padding: 4px 10px; border-radius: 4px; 
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        header h1 { color: var(--primary); font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 6px; margin: 0; }
+
+        #snapshot-header { 
+            display: none; position: relative; padding: 6px 15px; 
+            background: white; border-bottom: 3px solid var(--primary); 
+            width: 100%; margin: 0; text-align: center; flex-shrink: 0;
+        }
+        
+        .snapshot-left { display: inline-flex; flex-direction: column; gap: 2px; align-items: center; justify-content: center; width: 100%; }
+        .snapshot-right { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: row; gap: 8px; align-items: center; }
+
+        .ss-stat-box {
+            background: #f1f5f9; padding: 4px 8px; border-radius: 4px;
+            border-left: 3px solid var(--primary); font-size: 11px; font-weight: 700; color: #334155;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05); white-space: nowrap;
+        }
+        .ss-stat-box.danger { border-left-color: var(--danger); color: var(--danger); }
+
+        .stats-bar { 
+            background: white; padding: 4px 10px; border-radius: 4px; border-bottom: 2px solid var(--primary);
+            display: flex; gap: 12px; font-size: 12px; font-weight: 700; color: var(--primary);
+            flex-wrap: wrap; justify-content: center;
+        }
+        .stat-highlight { color: var(--danger); }
+
+        .controls-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            background: white; padding: 4px 10px; border-radius: 4px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05); gap: 6px; flex-wrap: wrap;
+        }
+
+        .import-section { display: flex; gap: 4px; align-items: center; }
+        .file-upload-wrapper { position: relative; overflow: hidden; display: inline-block; }
+        .file-upload-wrapper input[type="file"] { position: absolute; font-size: 100px; opacity: 0; right: 0; top: 0; cursor: pointer; }
+
+        .filter-pills { display: flex; gap: 2px; background: #e2e8f0; padding: 2px; border-radius: 4px; }
+        .pill { padding: 4px 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px; font-weight: 600; background: transparent; color: #475569; transition: 0.2s; }
+        .pill.active { background: white; color: var(--primary); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        
+        .controls-right { display: flex; gap: 4px; align-items: center; }
+        .search-box { padding: 4px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 11px; width: 140px; }
+        
+        .btn { padding: 4px 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; color: white; transition: 0.2s; }
+        .btn:hover { opacity: 0.9; }
+        .btn-add { background: var(--accent); }
+        .btn-view { background: var(--purple); }
+        .btn-clear { background: var(--danger); }
+        .btn-success { background: var(--success); }
+        .btn-dark { background: #1e293b; }
+        
+        .btn-round-mini { width: 22px; height: 22px; border-radius: 50%; background: var(--danger); border: none; color: white; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; transition: 0.2s; }
+        .btn-round-mini:hover { transform: scale(1.1); background: #dc2626; }
+
+        .table-area { 
+            flex: 1; background: white; border-radius: 4px; border: 1px solid var(--border); 
+            display: flex; flex-direction: column; min-height: 0; 
+        }
+        .table-wrapper { flex: 1; overflow: auto; max-height: none; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        
+        th { background: #3970c8; color: white; padding: 4px 6px; text-align: left; font-weight: 500; border-right: 1px solid #abbee7; position: sticky; top: 0; z-index: 10; }
+        td { padding: 4px 6px; border-bottom: 1px solid #9baec5; border-right: 1px solid #9baec5; line-height: 1.2; vertical-align: middle; }
+        tr:nth-child(even) { background: #fafbfc; }
+
+        .model-cell { display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 800; color: var(--primary); }
+        .btn-icon { border: none; background: none; cursor: pointer; font-size: 13px; padding: 1px; transition: transform 0.2s ease; display: inline-flex; align-items: center; justify-content: center; }
+        .btn-icon:hover { transform: scale(1.2); }
+        .actions-cell { text-align: center; }
+
+        .badge { padding: 2px 4px; border-radius: 3px; font-size: 9px; font-weight: 600; white-space: nowrap; }
+        .bg-green { background: #d1fae5; color: #065f46; }
+        .bg-red { background: #fecaca; color: #991b1b; }
+        .bg-yellow { background: #fef3c7; color: #92400e; }
+        
+        @keyframes drive { 0% { transform: translateX(0px); } 100% { transform: translateX(4px); } }
+        .moving-truck { display: inline-block; animation: drive 1s alternate infinite ease-in-out; margin-left: 2px; font-size: 14px; }
+
+        .part-badge { display: inline-flex; align-items: center; gap: 4px; background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: 700; margin: 1px; }
+        .part-qty { background: white; color: #991b1b; padding: 0 4px; border-radius: 2px; border: 1px solid #fca5a5; }
+
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; padding: 10px; align-items: center; justify-content: center; }
+        .modal-content { background: white; width: 98%; max-width: 850px; max-height: 95vh; display: flex; flex-direction: column; border-radius: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+        .modal-header { padding: 10px 14px; border-bottom: 2px solid var(--primary); display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 14px; overflow-y: auto; flex: 1; }
+
+        .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+        .input-box { display: flex; flex-direction: column; gap: 3px; }
+        label { font-size: 10px; font-weight: 700; color: #4e5257; text-transform: uppercase; }
+        input, select, textarea { padding: 5px 8px; border: 1px solid var(--border); border-radius: 3px; font-size: 11px; outline: none; background: white; width: 100%; }
+        
+        .textarea-styled { font-family: monospace; font-size: 12px; resize: none; border: 1px solid var(--border); border-radius: 4px; padding: 8px; width: 100%; }
+
+        .screenshot-mode { height: auto !important; overflow: visible !important; }
+        .screenshot-mode body { height: auto !important; overflow: visible !important; display: block; }
+        .screenshot-mode .container { display: block; height: auto; min-height: auto; }
+        .screenshot-mode .table-area { display: block; height: auto; overflow: visible; }
+        .screenshot-mode .table-wrapper { overflow: visible !important; max-height: none !important; }
+        
+        .screenshot-mode #snapshot-header { display: block !important; }
+        .screenshot-mode header, .screenshot-mode .stats-bar, .screenshot-mode .controls-bar, 
+        .screenshot-mode .actions-cell, .screenshot-mode .model-cell .btn-icon,
+        .screenshot-mode th:last-child, .screenshot-mode td:last-child, .screenshot-mode .part-remove { display: none !important; }
+        
+        .exit-ss { display: none; position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%); z-index: 2000; background: #1e293b; color: white; }
+        .screenshot-mode .exit-ss { display: flex; }
+    </style>
+</head>
+<body>
+
+    <button class="btn exit-ss" onclick="window.exitScreenshot()">✖ EXIT SNAPSHOT MODE</button>
+
+    <div id="snapshot-header">
+        <div class="snapshot-left">
+            <h2 style="color: var(--primary); font-size: 20px; margin: 0;">🧾 Material Movement Report</h2>
+            <p id="snapshot-time" style="font-size: 11px; color: #64748b; font-weight: 600; margin: 0;"></p>
+        </div>
+        <div class="snapshot-right">
+            <div class="ss-stat-box">Running Models: <span id="ss-moved">0</span></div>
+            <div class="ss-stat-box danger">Pending Trolleys: <span id="ss-pending">0</span></div>
+            <div class="ss-stat-box danger">Pending Parts: <span id="ss-pending-parts">0</span></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>🧾 Material Movement Report</h1>
+        </header>
+
+        <div class="stats-bar">
+            <span>Total Entries : <b id="stat-total">0</b></span>
+            <span>NO PLAN : <b id="stat-noplan">0</b></span>
+            <span>Running : <b id="stat-moved">0</b></span>
+            <span>Pending Trolleys : <b id="stat-pending">0</b></span>
+            <span class="stat-highlight">Pending Parts Count : <b id="stat-pending-parts">0</b></span>
+        </div>
+
+        <div class="controls-bar">
+            <div class="import-section">
+                <button class="btn btn-view" title="Download CSV Template" onclick="window.downloadTemplate()"><i class="fas fa-file-csv"></i> Template</button>
+                <div class="file-upload-wrapper">
+                    <button class="btn btn-success" id="upload-btn-text" title="Upload CSV File"><i class="fas fa-upload"></i> CSV</button>
+                    <input type="file" accept=".csv" onchange="window.handleCSVUpload(event)">
+                </div>
+                <button class="btn btn-dark" title="Quick Batch Updates" onclick="window.openBulkModal()"><i class="fas fa-bolt"></i> Quick Update</button>
+                <button class="btn btn-clear" title="Clear All Data" onclick="window.clearAllData()"><i class="fas fa-trash"></i> Clear</button>
+                <button class="btn-round-mini" title="Turn off all models (NO PLAN)" onclick="window.setAllToNonRunning()">⏸️</button>
+            </div>
+            
+            <div class="filter-pills">
+                <button class="pill active" id="btn-ALL" onclick="window.setFilter('ALL')">All</button>
+                <button class="pill" id="btn-RUNNING" onclick="window.setFilter('RUNNING')">🟢 Running</button>
+                <button class="pill" id="btn-NON_RUNNING" onclick="window.setFilter('NON_RUNNING')">🔴 Non-Running</button>
+            </div>
+
+            <div class="controls-right">
+                <input type="text" id="searchBar" class="search-box" placeholder="🔍 Search..." onkeyup="window.renderTable()">
+                <button class="btn btn-add" title="Enter Snapshot Mode" onclick="window.enterScreenshot()"><i class="fas fa-camera"></i> SNAPSHOT</button>
+            </div>
+        </div>
+
+        <div class="table-area">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 35px;">SI</th>
+                            <th>Product</th>
+                            <th>Line / Model</th>
+                            <th>Type</th>
+                            <th>Plan Coverage</th>
+                            <th>Plan</th>
+                            <th>Kitting Movement Status</th>
+                            <th>Every shift starting - Manually</th>
+                            <th>Material Movement with cover</th>
+                            <th>Pending part code & Qty</th>
+                            <th>Trolley pending status</th>
+                            <th class="actions-cell">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="bulkModal" class="modal">
+        <div class="modal-content" style="max-width: 550px;">
+            <div class="modal-header">
+                <h3 style="color: var(--primary); font-size: 15px;"><i class="fas fa-bolt"></i> Quick Batch Update</h3>
+                <button class="btn btn-clear" style="padding: 2px 6px;" onclick="window.closeBulkModal()">✖</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; gap: 8px; margin-bottom: 15px; background: #f1f5f9; padding: 4px; border-radius: 4px;">
+                    <button class="pill active" id="tab-btn-running" onclick="window.switchBulkTab('running')" style="flex: 1; padding: 6px;">🏃 Update Running Models</button>
+                    <button class="pill" id="tab-btn-pending" onclick="window.switchBulkTab('pending')" style="flex: 1; padding: 6px;">📦 Add Pending Parts</button>
+                </div>
+
+                <div id="tab-content-running" style="display: block;">
+                    <p style="font-size: 11px; color: #64748b; margin-bottom: 8px;">Copy and paste <b>Model Name</b> and <b>Quantity (Plan)</b> from Excel. (Updates matching models to 'Running'):</p>
+                    <textarea id="excelPasteArea" class="textarea-styled" rows="8" placeholder="Example format:&#10;Model_A   100&#10;Model_B   250"></textarea>
+                    <button class="btn btn-success" style="width: 100%; justify-content: center; font-size: 13px; padding: 8px; margin-top: 8px;" onclick="window.importBulkExcelData()">📥 UPDATE TO RUNNING MODELS</button>
+                </div>
+
+                <div id="tab-content-pending" style="display: none;">
+                    <p style="font-size: 11px; color: #64748b; margin-bottom: 8px;">Copy and paste <b>Model Name</b>, <b>Part Code</b>, and <b>Quantity</b> from Excel. (Adds to pending list & sets trolley to 'Pending'):</p>
+                    <textarea id="pendingPasteArea" class="textarea-styled" rows="8" placeholder="Example format:&#10;Model_A   ABC-123   5&#10;Model_B   XYZ-999   15"></textarea>
+                    <button class="btn" style="background: #f97316; width: 100%; justify-content: center; font-size: 13px; padding: 8px; margin-top: 8px;" onclick="window.importBulkPendingParts()">📥 ADD PENDING PARTS IN BULK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 style="color: var(--primary); font-size: 16px;">✏️ Edit Entry Data</h2>
+                <button class="btn btn-clear" onclick="window.closeEditModal()">✖ CLOSE</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editId">
+                <div class="form-grid">
+                    <div class="input-box"><label>PRODUCT</label><select id="product"><option value="MN">MN</option><option value="FN">FN</option><option value="FILTER">FILTER</option></select></div>
+                    <div class="input-box">
+                        <label>LINE / MODEL</label>
+                        <input type="text" id="model" list="modelOptions" placeholder="Select or type...">
+                        <datalist id="modelOptions"><option value="A1"></option><option value="A2"></option><option value="A3"></option><option value="A7"></option></datalist>
+                    </div>
+                    <div class="input-box"><label>TYPE</label><select id="type"><option value="Kitting Trolley">Kitting Trolley</option><option value="Manual">Manual</option></select></div>
+                    <div class="input-box"><label>PLAN COVERAGE</label><select id="planCoverage"><option value="Shift">Shift</option><option value="A">A</option><option value="B">B</option><option value="C">C</option></select></div>
+                    <div class="input-box"><label>PLAN</label><input type="text" id="plan" placeholder="Enter plan"></div>
+                    <div class="input-box"><label>KITTING MOVEMENT STATUS</label><select id="knittingStatus"><option value="Material moved to line">Material moved to line</option><option value="NO PLAN">NO PLAN</option><option value="Material not moved to line">Material not moved to line</option></select></div>
+                    <div class="input-box"><label>EVERY SHIFT STARTING - MANUALLY</label><input type="text" id="pieceMaterial" placeholder="NA or details"></div>
+                    <div class="input-box"><label>MATERIAL MOVEMENT WITH COVER</label><input type="text" id="materialCover" placeholder="NA or details"></div>
+                    <div class="input-box"><label>TROLLEY PENDING STATUS</label><select id="trolleyStatus"><option value="No Pending">No Pending</option><option value="Pending">Pending</option><option value="No Plan">No Plan</option></select></div>
+                    
+                    <div class="input-box" style="grid-column: span 3; background: #fff5f5; padding: 10px; border: 1px dashed #fca5a5; border-radius: 4px;">
+                        <label style="color: var(--danger);">➕ ADD PENDING PARTS (CODE & QTY)</label>
+                        <div style="display: flex; gap: 8px; align-items: center; margin-top: 4px;">
+                            <input type="text" id="tempPartCode" placeholder="Part Code (e.g. ABC-123)" style="flex: 1;">
+                            <input type="number" id="tempPartQty" placeholder="Qty" style="width: 80px;">
+                            <button type="button" class="btn btn-clear" style="padding: 6px 12px;" onclick="window.addPendingPart()">ADD</button>
+                        </div>
+                        <div id="pendingPartsList" style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px;"></div>
+                    </div>
+                </div>
+                <button class="btn btn-add" style="width: 100%; justify-content: center; font-size: 14px; padding: 10px;" onclick="window.saveEdit()">✅ UPDATE DATA</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, doc, updateDoc, deleteDoc, onSnapshot, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAiZl9YhGsfKIKTTK5hMqqhWoIiYbri9rI",
+            authDomain: "material-controler.firebaseapp.com",
+            projectId: "material-controler",
+            storageBucket: "material-controler.firebasestorage.app",
+            messagingSenderId: "782401252699",
+            appId: "1:782401252699:web:19d6775e92c428c224fe7e"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const firestoreDb = getFirestore(app);
+        const materialCollection = collection(firestoreDb, "material_movement_data");
+
+        window.db = []; 
+        window.currentFilter = 'ALL';
+        window.tempPendingParts = []; 
+        window.preSnapshotFilter = 'ALL';
+
+        onSnapshot(materialCollection, (snapshot) => {
+            window.db = [];
+            snapshot.forEach((docSnap) => {
+                window.db.push({ id: docSnap.id, ...docSnap.data() });
+            });
+            window.renderTable(); 
+            window.updateStats();
+        });
+
+        // Tabs Logic for Bulk Modal
+        window.switchBulkTab = function(tabName) {
+            document.getElementById('tab-btn-running').classList.remove('active');
+            document.getElementById('tab-btn-pending').classList.remove('active');
+            document.getElementById('tab-content-running').style.display = 'none';
+            document.getElementById('tab-content-pending').style.display = 'none';
+
+            document.getElementById(`tab-btn-${tabName}`).classList.add('active');
+            document.getElementById(`tab-content-${tabName}`).style.display = 'block';
+        }
+
+        window.openBulkModal = function() {
+            document.getElementById('excelPasteArea').value = '';
+            document.getElementById('pendingPasteArea').value = '';
+            window.switchBulkTab('running'); 
+            document.getElementById('bulkModal').style.display = 'flex';
+        }
+        
+        window.closeBulkModal = function() { document.getElementById('bulkModal').style.display = 'none'; }
+
+        window.importBulkExcelData = async function() {
+            const rawText = document.getElementById('excelPasteArea').value.trim();
+            if(!rawText) { alert("Please paste Excel data first!"); return; }
+
+            const lines = rawText.split('\n');
+            const batch = writeBatch(firestoreDb);
+            let updatedCount = 0;
+            let notFoundList = [];
+
+            lines.forEach(line => {
+                if(!line.trim()) return;
+                const cols = line.trim().split(/\t+ पद्धतियां |\s+/);
+                if(cols.length >= 2) {
+                    const planVal = cols.pop(); 
+                    const modelVal = cols.join(' '); 
+
+                    const existingItem = window.db.find(x => x.model.toLowerCase() === modelVal.toLowerCase());
+                    
+                    if (existingItem) {
+                        const docRef = doc(firestoreDb, "material_movement_data", existingItem.id);
+                        batch.update(docRef, {
+                            plan: planVal,
+                            knittingStatus: 'Material moved to line'
+                        });
+                        updatedCount++;
+                    } else {
+                        notFoundList.push(modelVal); 
+                    }
+                } else {
+                    notFoundList.push(`${line.trim()} (Invalid Format)`);
+                }
+            });
+
+            if(updatedCount > 0) {
+                await batch.commit();
+                window.closeBulkModal();
+            }
+
+            let alertMsg = updatedCount > 0 
+                ? `Successfully updated ${updatedCount} models to RUNNING!` 
+                : `No matching existing models found!`;
+
+            if (notFoundList.length > 0) {
+                alertMsg += `\n\nFailed / Unrecognized Items (${notFoundList.length}):\n❌ ` + notFoundList.join('\n❌ ');
+            }
+
+            alert(alertMsg);
+        }
+
+        // UPDATED Logic: Bulk Pending Parts (Handles space formatting properly & Duplicate Shift Check)
+        window.importBulkPendingParts = async function() {
+            const rawText = document.getElementById('pendingPasteArea').value.trim();
+            if(!rawText) { alert("Please paste Excel data first!"); return; }
+
+            const lines = rawText.split('\n');
+            const batch = writeBatch(firestoreDb);
+            let updatedCount = 0;
+            let notFoundList = []; 
+            let alreadyInManualList = [];
+
+            lines.forEach(line => {
+                if(!line.trim()) return;
+                
+                // First try splitting by Tab (Excel default), if not use spaces
+                let cols = line.trim().split('\t');
+                if(cols.length < 3) {
+                    cols = line.trim().split(/\s+/);
+                }
+                
+                if(cols.length >= 3) {
+                    const qtyVal = cols.pop().trim();
+                    const partCodeVal = cols.pop().trim();
+                    const modelVal = cols.join(' ').trim();
+
+                    const existingItem = window.db.find(x => x.model.toLowerCase() === modelVal.toLowerCase());
+                    
+                    if (existingItem) {
+                        // CHECK: Is the part number already in "Every shift starting - Manually" (pieceMaterial)?
+                        const manualShiftData = (existingItem.pieceMaterial || '').toLowerCase();
+                        if(manualShiftData.includes(partCodeVal.toLowerCase())) {
+                            alreadyInManualList.push(`${modelVal} -> ${partCodeVal}`);
+                            return; // Skip adding to pending
+                        }
+
+                        let currentParts = existingItem.pendingParts ? [...existingItem.pendingParts] : [];
+                        currentParts.push({ code: partCodeVal, qty: qtyVal });
+                        
+                        let fallbackString = currentParts.map(p => `${p.code} - ${p.qty}#`).join(', ');
+
+                        const docRef = doc(firestoreDb, "material_movement_data", existingItem.id);
+                        batch.update(docRef, {
+                            pendingParts: currentParts,
+                            partCodeQty: fallbackString,
+                            trolleyStatus: 'Pending' 
+                        });
+                        updatedCount++;
+                    } else {
+                        notFoundList.push(`${modelVal} -> ${partCodeVal}`);
+                    }
+                } else {
+                    notFoundList.push(`${line.trim()} (Invalid Format)`);
+                }
+            });
+
+            if(updatedCount > 0) {
+                await batch.commit();
+                window.closeBulkModal();
+            }
+
+            let alertMsg = updatedCount > 0 
+                ? `Successfully added pending parts to ${updatedCount} models!` 
+                : `No matching models found, or invalid format!`;
+
+            if (alreadyInManualList.length > 0) {
+                alertMsg += `\n\n⚠️ Skipped (Already in Shift Manual):\n❌ ` + alreadyInManualList.join('\n❌ ');
+            }
+
+            if (notFoundList.length > 0) {
+                alertMsg += `\n\nFailed / Unrecognized Items:\n❌ ` + notFoundList.join('\n❌ ');
+            }
+
+            alert(alertMsg);
+        }
+
+        // UPDATED Logic: NO PLAN button completely clears Pending items
+        window.setAllToNonRunning = async function() {
+            if(window.db.length === 0) return;
+            if(confirm(`Do you want to switch all ${window.db.length} models to NO PLAN (Non-Running) and CLEAR all pending parts?`)) {
+                const batch = writeBatch(firestoreDb);
+                window.db.forEach(item => {
+                    const docRef = doc(firestoreDb, "material_movement_data", item.id);
+                    batch.update(docRef, { 
+                        knittingStatus: 'NO PLAN',
+                        pendingParts: [],
+                        partCodeQty: '-',
+                        trolleyStatus: 'No Pending'
+                    });
+                });
+                await batch.commit();
+            }
+        }
+
+        window.setFilter = function(filterType) {
+            window.currentFilter = filterType;
+            document.querySelectorAll('.pill').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('btn-' + filterType).classList.add('active');
+            window.renderTable();
+        }
+
+        // UPDATED Logic: Toggling a single row to NO PLAN clears Pending Items
+        window.toggleRunningState = async function(id) {
+            const item = window.db.find(x => x.id === id);
+            if (item) {
+                const newStatus = (item.knittingStatus === 'NO PLAN') ? 'Material moved to line' : 'NO PLAN';
+                let updateData = { knittingStatus: newStatus };
+                
+                // Clear pending data if switched to NO PLAN
+                if(newStatus === 'NO PLAN') {
+                    updateData.pendingParts = [];
+                    updateData.partCodeQty = '-';
+                    updateData.trolleyStatus = 'No Pending';
+                }
+
+                await updateDoc(doc(firestoreDb, "material_movement_data", id), updateData);
+            }
+        }
+
+        window.renderTable = function() {
+            const tbody = document.getElementById('tableBody');
+            const search = document.getElementById('searchBar').value.toLowerCase();
+
+            let filtered = window.db.filter(i => (i.model || "").toLowerCase().includes(search) || (i.product || "").toLowerCase().includes(search));
+            
+            if (window.currentFilter === 'RUNNING') filtered = filtered.filter(i => i.knittingStatus !== 'NO PLAN');
+            else if (window.currentFilter === 'NON_RUNNING') filtered = filtered.filter(i => i.knittingStatus === 'NO PLAN');
+
+            tbody.innerHTML = filtered.map((item, i) => {
+                let partsHTML = item.partCodeQty || '-'; 
+                if (item.pendingParts && item.pendingParts.length > 0) {
+                    partsHTML = item.pendingParts.map(p => `${p.code} - ${p.qty}#`).join(', ');
+                }
+
+                let kittingStatusDisplay = item.knittingStatus;
+                if (item.knittingStatus === 'Material moved to line') {
+                    kittingStatusDisplay = `Material moved to line <span class="moving-truck">🛒</span>`;
+                }
+
+                let trolleyHTML = item.trolleyStatus;
+                if(item.trolleyStatus === 'No Pending') trolleyHTML = '✅ No Pending';
+                else if(item.trolleyStatus === 'Pending') trolleyHTML = '⏳ Pending';
+                else if(item.trolleyStatus === 'No Plan') trolleyHTML = '⏸️ No Plan';
+
+                return `
+                <tr class="${item.knittingStatus === 'NO PLAN' ? 'row-noplan' : ''}">
+                    <td><b>${i+1}</b></td>
+                    <td><b>${item.product}</b></td>
+                    <td>
+                        <div class="model-cell">
+                            ${item.model}
+                            <button onclick="window.toggleRunningState('${item.id}')" class="btn-icon" title="${item.knittingStatus === 'NO PLAN' ? 'Start Running' : 'Stop (NO PLAN)'}">
+                                ${item.knittingStatus === 'NO PLAN' ? '▶️' : '⏸️'}
+                            </button>
+                        </div>
+                    </td>
+                    <td>${item.type}</td>
+                    <td>${item.planCoverage}</td>
+                    <td>${item.plan}</td>
+                    <td><span class="badge ${window.getStatusClass(item.knittingStatus)}">${kittingStatusDisplay}</span></td>
+                    <td>${item.pieceMaterial}</td>
+                    <td>${item.materialCover}</td>
+                    <td>${partsHTML}</td>
+                    <td><span class="badge ${window.getTrolleyClass(item.trolleyStatus)}">${trolleyHTML}</span></td>
+                    <td class="actions-cell">
+                        <button onclick="window.openEditModal('${item.id}')" class="btn-icon" title="Edit row">✏️</button>
+                        <button onclick="window.deleteItem('${item.id}')" class="btn-icon" title="Delete row">🗑️</button>
+                    </td>
+                </tr>
+                `;
+            }).join('');
+        }
+
+        window.getStatusClass = s => s === 'Material moved to line' ? 'bg-green' : (s === 'NO PLAN' ? 'bg-red' : 'bg-yellow');
+        window.getTrolleyClass = s => s === 'No Pending' ? 'bg-green' : (s === 'Pending' ? 'bg-red' : 'bg-yellow');
+
+        window.updateStats = function() {
+            const total = window.db.length;
+            const noplan = window.db.filter(x => x.knittingStatus === 'NO PLAN').length;
+            const moved = window.db.filter(x => x.knittingStatus.includes('moved')).length;
+            
+            const pendingTrolleys = window.db.filter(x => x.knittingStatus === 'Material not moved to line').length;
+            
+            let totalPendingPartsCount = 0;
+            window.db.forEach(item => {
+                if (item.pendingParts && Array.isArray(item.pendingParts)) {
+                    totalPendingPartsCount += item.pendingParts.filter(p => p.code && p.code.trim() !== '').length; 
+                }
+            });
+
+            document.getElementById('stat-total').innerText = total;
+            document.getElementById('stat-noplan').innerText = noplan;
+            document.getElementById('stat-moved').innerText = moved;
+            document.getElementById('stat-pending').innerText = pendingTrolleys;
+            document.getElementById('stat-pending-parts').innerText = totalPendingPartsCount;
+        }
+
+        // UPDATED Logic: Single Add checks if part is already in "Every shift starting - Manually"
+        window.addPendingPart = function() {
+            const codeInput = document.getElementById('tempPartCode');
+            const qtyInput = document.getElementById('tempPartQty');
+            const manualShiftInput = document.getElementById('pieceMaterial').value || '';
+            const code = codeInput.value.trim();
+            const qty = parseInt(qtyInput.value);
+
+            if (!code || isNaN(qty) || qty <= 0) {
+                alert("Please enter a valid Part Code and Quantity."); return;
+            }
+
+            if (manualShiftInput.toLowerCase().includes(code.toLowerCase())) {
+                alert(`⚠️ Part Code '${code}' is not added because it is already present in 'Every shift starting - Manually'.`);
+                return;
+            }
+
+            window.tempPendingParts.push({ code, qty });
+            codeInput.value = ''; qtyInput.value = '';
+            window.renderPendingPartsUI();
+            
+            document.getElementById('trolleyStatus').value = 'Pending';
+        }
+
+        window.removePendingPart = function(index) {
+            window.tempPendingParts.splice(index, 1);
+            window.renderPendingPartsUI();
+            
+            if(window.tempPendingParts.length === 0) {
+                document.getElementById('trolleyStatus').value = 'No Pending';
+            }
+        }
+
+        window.renderPendingPartsUI = function() {
+            const list = document.getElementById('pendingPartsList');
+            if(window.tempPendingParts.length === 0) {
+                list.innerHTML = '<span style="font-size: 11px; color: #94a3b8;">No pending parts added yet.</span>'; return;
+            }
+            list.innerHTML = window.tempPendingParts.map((p, i) => `
+                <span class="part-badge">
+                    ${p.code} - <span class="part-qty">${p.qty}#</span>
+                    <span class="part-remove" style="cursor:pointer; margin-left:3px; font-size:12px;" onclick="window.removePendingPart(${i})">✖</span>
+                </span>
+            `).join('');
+        }
+
+        window.openEditModal = function(id) {
+            const item = window.db.find(x => x.id === id);
+            if(!item) return;
+            
+            document.getElementById('editId').value = item.id;
+            document.getElementById('product').value = item.product || 'MN';
+            document.getElementById('model').value = item.model || '';
+            document.getElementById('type').value = item.type || 'Kitting Trolley';
+            document.getElementById('planCoverage').value = item.planCoverage || 'Shift';
+            document.getElementById('plan').value = item.plan || '-';
+            document.getElementById('knittingStatus').value = item.knittingStatus || 'NO PLAN';
+            document.getElementById('pieceMaterial').value = item.pieceMaterial || 'NA';
+            document.getElementById('materialCover').value = item.materialCover || 'NA';
+            document.getElementById('trolleyStatus').value = item.trolleyStatus || 'No Pending';
+
+            window.tempPendingParts = item.pendingParts ? [...item.pendingParts] : [];
+            window.renderPendingPartsUI();
+
+            document.getElementById('editModal').style.display = 'flex';
+        }
+
+        window.closeEditModal = function() { document.getElementById('editModal').style.display = 'none'; }
+
+        window.saveEdit = async function() {
+            const id = document.getElementById('editId').value;
+            const itemRef = doc(firestoreDb, "material_movement_data", id);
+            
+            let fallbackString = '-';
+            if(window.tempPendingParts.length > 0) {
+                fallbackString = window.tempPendingParts.map(p => `${p.code} - ${p.qty}#`).join(', ');
+            }
+
+            await updateDoc(itemRef, {
+                product: document.getElementById('product').value,
+                model: document.getElementById('model').value,
+                type: document.getElementById('type').value,
+                planCoverage: document.getElementById('planCoverage').value,
+                plan: document.getElementById('plan').value || '-',
+                knittingStatus: document.getElementById('knittingStatus').value,
+                pieceMaterial: document.getElementById('pieceMaterial').value || 'NA',
+                materialCover: document.getElementById('materialCover').value || 'NA',
+                trolleyStatus: document.getElementById('trolleyStatus').value,
+                pendingParts: [...window.tempPendingParts], 
+                partCodeQty: fallbackString 
+            });
+            
+            window.closeEditModal();
+        }
+
+        window.downloadTemplate = function() {
+            const headers = "Product,Line / Model,Type,Plan Coverage,Plan,Kitting Movement Status,Every shift starting,Material Movement with cover,Trolley pending status\n";
+            const sample1 = "MN,A1,Kitting Trolley,Shift,100,Material moved to line,NA,NA,No Pending\n";
+            const sample2 = "FN,A2,Manual,A,50,NO PLAN,NA,NA,No Plan\n";
+            
+            const blob = new Blob([headers + sample1 + sample2], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Material_Movement_Template.csv';
+            a.click();
+        }
+
+        window.handleCSVUpload = async function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const text = e.target.result;
+                const rows = text.split(/\r?\n/);
+                let importedData = [];
+
+                function parseCSVRow(row) {
+                    const result = [];
+                    let inQuotes = false;
+                    let currentStr = "";
+                    for (let i = 0; i < row.length; i++) {
+                        let char = row[i];
+                        if (char === '"') inQuotes = !inQuotes;
+                        else if (char === ',' && !inQuotes) { result.push(currentStr.trim().replace(/^"|"$/g, '')); currentStr = ""; } 
+                        else { currentStr += char; }
+                    }
+                    result.push(currentStr.trim().replace(/^"|"$/g, ''));
+                    return result;
+                }
+
+                for(let i = 1; i < rows.length; i++) {
+                    if(!rows[i].trim()) continue;
+                    const cols = parseCSVRow(rows[i]);
+                    if(cols.length >= 2 && cols[1] !== "") { 
+                        importedData.push({
+                            product: cols[0] || 'MN',
+                            model: cols[1] || '',
+                            type: cols[2] || 'Kitting Trolley',
+                            planCoverage: cols[3] || 'Shift',
+                            plan: cols[4] || '-',
+                            knittingStatus: cols[5] || 'NO PLAN',
+                            pieceMaterial: cols[6] || 'NA',
+                            materialCover: cols[7] || 'NA',
+                            trolleyStatus: cols[8] || 'No Pending',
+                            pendingParts: [], 
+                            partCodeQty: '-' 
+                        });
+                    }
+                }
+
+                if (importedData.length > 0) {
+                    if(confirm(`${importedData.length} Entries found. Upload them to Database?`)) {
+                        try {
+                            const btn = document.getElementById('upload-btn-text');
+                            const origText = btn.innerHTML;
+                            btn.innerHTML = "<i class='fas fa-spinner fa-spin'></i> ...";
+                            
+                            const batches = [];
+                            let currentBatch = writeBatch(firestoreDb);
+                            let operationCount = 0;
+
+                            importedData.forEach(item => {
+                                if (operationCount === 450) {
+                                    batches.push(currentBatch.commit());
+                                    currentBatch = writeBatch(firestoreDb);
+                                    operationCount = 0;
+                                }
+                                
+                                const existingItem = window.db.find(x => x.model.toLowerCase() === item.model.toLowerCase());
+                                
+                                if (existingItem) {
+                                    const docRef = doc(firestoreDb, "material_movement_data", existingItem.id);
+                                    currentBatch.update(docRef, item);
+                                } else {
+                                    const newDocRef = doc(materialCollection);
+                                    currentBatch.set(newDocRef, item);
+                                }
+                                operationCount++;
+                            });
+                            
+                            if (operationCount > 0) batches.push(currentBatch.commit());
+                            await Promise.all(batches);
+                            alert("CSV Data successfully uploaded (Duplicates prevented)!");
+                            btn.innerHTML = origText;
+                        } catch (error) {
+                            alert("Error saving: " + error.message);
+                            document.getElementById('upload-btn-text').innerHTML = "<i class='fas fa-upload'></i> CSV";
+                        }
+                    }
+                }
+                event.target.value = ''; 
+            };
+            reader.readAsText(file);
+        }
+
+        window.deleteItem = async function(id) { 
+            if(confirm('Delete this row?')) { 
+                await deleteDoc(doc(firestoreDb, "material_movement_data", id));
+            } 
+        }
+
+        window.clearAllData = async function() { 
+            if(confirm('Do you want to delete all data from Database?')) { 
+                const snapshot = await getDocs(materialCollection);
+                const batch = writeBatch(firestoreDb);
+                snapshot.docs.forEach((d) => batch.delete(d.ref));
+                await batch.commit();
+            } 
+        }
+
+        window.enterScreenshot = function() {
+            window.preSnapshotFilter = window.currentFilter;
+            window.setFilter('RUNNING'); 
+
+            const runningItems = window.db.filter(x => x.knittingStatus !== 'NO PLAN');
+            const totalRunning = runningItems.length;
+            const pendingTrolleys = runningItems.filter(x => x.knittingStatus === 'Material not moved to line').length;
+            
+            let pendingParts = 0;
+            runningItems.forEach(i => {
+                if (i.pendingParts && Array.isArray(i.pendingParts)) {
+                    pendingParts += i.pendingParts.filter(p => p.code && p.code.trim() !== '').length; 
+                }
+            });
+
+            document.getElementById('ss-moved').innerText = totalRunning;
+            document.getElementById('ss-pending').innerText = pendingTrolleys;
+            document.getElementById('ss-pending-parts').innerText = pendingParts;
+
+            const now = new Date();
+            document.getElementById('snapshot-time').innerText = "Report Generated: " + now.toLocaleString('en-US');
+            
+            document.body.classList.add('screenshot-mode');
+            window.scrollTo(0,0);
+        }
+
+        window.exitScreenshot = function() { 
+            document.body.classList.remove('screenshot-mode'); 
+            window.setFilter(window.preSnapshotFilter); 
+        }
+    </script>
+</body>
+</html>
